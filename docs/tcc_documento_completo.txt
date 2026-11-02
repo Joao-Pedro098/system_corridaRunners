@@ -1,0 +1,681 @@
+CENTRO UNIVERSITÁRIO PARA O DESENVOLVIMENTO SUSTENTÁVEL DA AMAZÔNIA
+
+CURSO DE TECNÓLOGO EM ANÁLISE E DESENVOLVIMENTO DE SISTEMAS
+
+JOÃO PEDRO OLIVEIRA TAVARES
+
+DESENVOLVIMENTO DE UM SISTEMA DE INFORMAÇÃO PARALOCALIZAÇÃO E DETALHAMENTO DE EVENTOS ESPORTIVOS
+
+PARAUAPEBAS
+
+2026
+
+JOÃO PEDRO OLIVEIRA TAVARES
+
+DESENVOLVIMENTO DE UM SISTEMA DE INFORMAÇÃO PARALOCALIZAÇÃO E DETALHAMENTO DE EVENTOS ESPORTIVOS
+
+Trabalho de Conclusão de Curso (TCC) apresentado ao Centro Universitário para o Desenvolvimento Sustentável da Amazônia (UNIFADESA), como parte das exigências do Programado Programa do Curso Tecnólogo em Análise e desenvolvimento de sistema para a obtenção do Título de tecnólogo.
+
+Orientadora: Prof.ª Esp. Sara Debora Carvalho Cerqueira
+
+Coorientador (a): Prof. __________________________
+
+PARAUAPEBAS
+
+2026
+
+CARDOSO, Bruno Antunes; MINÉ, Kenedy Martins
+
+Título do texto; nome do orientador; ano.
+
+58 f. (número de páginas)
+
+Trabalho de Conclusão de Curso (Graduação) – Faculdade para o Desenvolvimento Sustentável da Amazônia - FADESA, Parauapebas – PA, 2023.
+
+Palavras-Chave
+
+Nota:  A versão original deste trabalho de conclusão de curso encontra-se disponível no Serviço de Biblioteca e Documentação da Faculdade para o Desenvolvimento Sustentável da Amazônia – FADESA em Parauapebas – PA.
+
+Autorizo, exclusivamente para fins acadêmicos e científicos, a reprodução total ou parcial deste trabalho de conclusão, por processos fotocopiadores e outros meios eletrônicos.
+
+Comitê de Ética 
+
+Protocolo nº:
+
+Data:
+
+JOÃO PEDRO OLIVEIRA TAVARES
+
+DESENVOLVIMENTO DE UM SISTEMA DE INFORMAÇÃO PARALOCALIZAÇÃO E DETALHAMENTO DE EVENTOS ESPORTIVOS
+
+Trabalho de Conclusão de Curso (TCC) apresentado ao Centro Universitário para o Desenvolvimento Sustentável da Amazônia (UNIFADESA), como parte das exigências do Programado Curso de Tecnólogo em Análise e Desenvolvimento de Sistemas para a obtenção do Título de Bacharel.
+
+Aprovado em: _____/_____/_____.
+
+Banca Examinadora
+
+________________________________________________________
+
+Prof. (a) Dr.(ª)
+
+Centro Universitário para o Desenvolvimento Sustentável da Amazônia
+
+(Orientador)
+
+________________________________________________________
+
+Prof. Dr.(ª)
+
+Centro Universitário para o Desenvolvimento Sustentável da Amazônia
+
+(Coorientador)
+
+________________________________________________________
+
+Prof.(a) Dr. (ª)
+
+Centro Universitário para o Desenvolvimento Sustentável da Amazônia
+
+(Avaliador)
+
+________________________________________________________
+
+Prof.(a) Dr. (ª)
+
+Centro Universitário para o Desenvolvimento Sustentável da Amazônia
+
+(Avaliador)
+
+DEDICATÓRIA (sem título)
+
+Página onde o autor presta uma homenagem ou dedica seu trabalho.
+
+O tipo de letra utilizado deve ser o mesmo que usado ao longo de todo o trabalho. A ABNT permite o uso das fontes Times New Roman ou Arial. O texto deve estar justificado, com espaçamento simples, fonte 12. O texto também deve esta no fim da página com 7cm de recuo da margem esquerda.
+
+AGRADECIMENTOS 
+
+Os agradecimentos no TCC são uma seção opcional (dependendo das normas da instituição), localizada nos elementos pré-textuais, geralmente após a dedicatória (se houver) e antes do resumo. Essa parte do trabalho tem como objetivo permitir que o autor reconheça e valorize as pessoas e instituições que contribuíram para a realização da pesquisa.
+
+Diferente das demais seções do TCC, os agradecimentos possuem um caráter mais pessoal e subjetivo, embora ainda devam manter uma linguagem respeitosa e adequada ao contexto acadêmico. É o espaço em que o autor pode expressar gratidão pelo apoio recebido ao longo da jornada, seja ele acadêmico, profissional, emocional ou financeiro.
+
+Nos agradecimentos, é comum mencionar:
+
+o(a) orientador(a), pelo acompanhamento e direcionamento científico;
+
+professores e instituição de ensino, pela formação acadêmica;
+
+colegas e amigos, pelo apoio durante o curso;
+
+familiares, pelo incentivo e compreensão;
+
+instituições ou organizações que contribuíram com dados, estrutura ou financiamento;
+
+participantes da pesquisa, quando aplicável.
+
+A escrita deve ser feita em texto corrido, sem necessidade de subdivisões, e pode ser redigida em primeira pessoa (singular ou plural). Apesar de permitir um tom mais pessoal, é importante evitar exageros, informalidade excessiva ou menções inadequadas ao contexto acadêmico.
+
+Os agradecimentos não têm função científica direta, ou seja, não interferem na avaliação técnica do TCC, mas são importantes para demonstrar reconhecimento e ética acadêmica.
+
+EPÍGRAFE (sem título)
+
+Texto em que o autor apresenta uma citação, seguida da indicação da autoria, relacionada com a matéria tratada no corpo do trabalho. Muito utilizada também para expressão de algum sentimento pessoal do autor através da citação de falas conhecidas de grandes pensadores ou trechos de letras de música ou poesia. Nesta página o autor poderá utilizar o tipo de fonte que desejar bem como dispor o pensamento ou o trecho citado em qualquer lugar da página. O texto deve estar justificado, com espaçamento simples, fonte 12. O texto também deve esta no fim da página com 7cm de recuo da margem esquerda.
+
+"O conhecimento é como um horizonte que se expande à medida que avançamos na busca pelo saber." - Albert Einstein
+
+RESUMO
+
+Elemento obrigatório e sua elaboração deve obedecer a norma ABNT NBR 6028/2021. O resumo é a apresentação concisa dos pontos relevantes do texto, fornecendo uma visão rápida e claro do conteúdo e das conclusões do trabalho. O resumo deve evidenciar os elementos mais importantes do conteúdo e dar base suficiente para que o leitor possa decidir se irá ou não consultar o texto completo. Fórmulas, equações, citações de autores não devem ser apresentadas no resumo. Deve ser redigido em um único parágrafo, com espaçamento de simples e conter de 150 a 500 palavras. Após o resumo devem ser apresentadas as palavras representativas do conteúdo do trabalho (palavras-chave). Para estabelecer as palavras-chave, deve-se consultar os Descritores em Ciências da Saúde – DeCS disponível em: http://decs.bvs.br. As palavras-chave devem ser antecedidas da expressão Palavra-chave, seguida de dois-pontos, separadas entre si por ponto e vírgula e finalizadas por ponto. Devem ser grafadas com as iniciais em minúscula, com exceção dos substantivos próprios e nomes científicos.
+
+Palavras-chave: Primeira Palavra-Chave; Segunda Palavra-Chave; Terceira Palavra-Chave.
+
+ABSTRACT
+
+Versão do resumo do trabalho em inglês, Mandatory element and its elaboration must adhere to the ABNT NBR 6028/2021 standard. The abstract is a concise presentation of the relevant points of the text, providing a quick and clear overview of the content and conclusions of the work. The abstract should highlight the most important elements of the content and provide sufficient basis for the reader to decide whether to consult the full text. Formulas, equations, and citations of authors should not be included in the abstract. It should be written in a single paragraph, with single spacing, and contain between 150 and 500 words. Following the abstract, representative keywords of the work's content (keywords) should be presented. For topics in the health field, keywords should be established by consulting the Health Sciences Descriptors (DeCS) available at: http://decs.bvs.br. Keywords should be preceded by the expression "Keyword(s)," followed by a colon, separated by semicolons, and ending with a period. They should be written with lowercase initials, except for proper nouns and scientific names.
+
+Keywords: First Keyword; Second Keyword; Third Keyword. 
+
+LISTAS DE ILUSTRAÇÕES
+
+FIGURA
+
+FIGURA 1 – Título da figura 1 …………………………………………………………… 00
+
+FIGURA 2 – Título da figura 2 ………...………………………………………………… 00 FIGURA 3 – Título da figura 3 …………...……………………………………………… 00
+
+FIGURA 4 – Título da figura 4 …………...……………………………………………… 00
+
+A LISTA DE ILUSTRAÇÕES enquadra-se figuras, imagem, quadros, fotografias; fórmulas; mapas; gráficos; gravuras, fotografias e figuras; fluxogramas e organogramas; quadros; desenhos; etc.A LISTA DE ILUSTRAÇÕES enquadra-se figuras, imagem, quadros, fotografias; fórmulas; mapas; gráficos; gravuras, fotografias e figuras; fluxogramas e organogramas; quadros; desenhos; etc.
+
+A LISTA DE ILUSTRAÇÕES enquadra-se figuras, imagem, quadros, fotografias; fórmulas; mapas; gráficos; gravuras, fotografias e figuras; fluxogramas e organogramas; quadros; desenhos; etc.
+
+A LISTA DE ILUSTRAÇÕES enquadra-se figuras, imagem, quadros, fotografias; fórmulas; mapas; gráficos; gravuras, fotografias e figuras; fluxogramas e organogramas; quadros; desenhos; etc.
+
+LISTA DE TABELAS
+
+TABELA 1 – Título da tabela ..................................................................................... 00
+
+TABELA 2 – Título da tabela ..................................................................................... 00
+
+TABELA 3 – Título da tabela ..................................................................................... 00
+
+TABELA 4 – Título da tabela ..................................................................................... 00
+
+TABELA 5 – Título da tabela ..................................................................................... 00
+
+LISTAS DE ABREVIATURAS E SIGLAS
+
+ 
+
+ABNT
+
+-
+
+Associação Brasileira de Normas Técnicas
+
+IBGE
+
+-
+
+Instituto Brasileiro de Geografia e Estatística
+
+SciELO
+
+-
+
+Scientifc Eletronic Library Online
+
+TCC
+
+-
+
+Trabalho de Conclusão de Curso
+
+LISTA DE SIMBOLOS
+
+dB – Decibel
+
+Hz – Hertz
+
+m – Metros
+
+km – Quilômetro
+
+SUMÁRIO
+
+1.INTRODUÇÃO2
+
+2.GESTÃO ESPORTIVA E TECNOLOGIA DA INFORMAÇÃO APLICADA2
+
+2.1A evolução das corridas de rua e necessidade de gestão esportiva2
+
+2.2Sistema de Informação na otimização de processo2
+
+2.3Experiência do Usuário e Centralização de Dados2
+
+2.4Painéis de Gestão ( Dashboards ) e Acompanhamento de Desempenho2
+
+3.METODOLOGIA2
+
+3.1Tipo de estudo2
+
+3.2Método de desenvolvimento de projeto2
+
+3.3Planejamento e Análise de Viabilidade2
+
+3.4Garantia de Qualidade2
+
+3.5Aspectos éticos2
+
+3.6Critérios de inclusão e exclusão2
+
+4.RESULTADOS E DISCUSSÃO2
+
+4.1Análise de requisitos2
+
+4.1.1Requisitos Funcionais2
+
+4.1.2Requisitos Não Funcionais2
+
+4.2Funcionalidades da aplicação2
+
+4.3Tecnologias utilizadas2
+
+4.4Plataforma de desenvolvimento2
+
+4.5Visão geral da ferramenta2
+
+4.6Testes e resultados2
+
+5.CONCLUSÃO2
+
+REFERÊNCIAS2
+
+APÊNDICES2
+
+ANEXO2
+
+INTRODUÇÃO
+
+A prática de corridas de rua tem se consolidado não apenas como uma atividade de incentivo à saúde e qualidade de vida, mas também como um forma importante de integração social e movimentação econômica. Em municípios em constante desenvolvimento, o calendário de eventos esportivos que engloba desde provas tradicionais, como a Corrida de São Sebastião, até novas iniciativas promovidas por veículos de comunicação e empresas locais tem crescido de forma acelerada. 
+
+De acordo com Saladino (2021, p. 55), a corrida de rua contemporânea transformou-se em um evento de massa que exige das cidades e dos organizadores uma estrutura complexa, onde a comunicação eficiente com o participante é o fator determinante para o sucesso e a segurança do evento. No entanto, o suporte tecnológico voltado para a gestão e divulgação dessas provas muitas vezes não acompanha o ritmo de crescimento do número de participantes. A ausência de canais oficiais e centralizados para a transmissão de informações básicas faz com que o ecossistema esportivo local dependa de ferramentas improvisadas para manter os atletas informados.
+
+Atualmente, a organização dos calendários de corridas na região ocorre de forma descentralizada e, muitas vezes, informal. O compartilhamento de datas, links de inscrição, mapas de percurso e horários de entrega de kits é feito majoritariamente através de planilhas estáticas e mensagens em redes sociais. Essa fragmentação gera ruídos na comunicação e insegurança para os atletas, que frequentemente perdem prazos ou têm dificuldade em localizar resultados e fotos oficiais pós-prova. Paralelamente, os organizadores enfrentam sobrecarga administrativa ao precisarem atualizar dados manualmente em diversas plataformas diferentes.
+
+Diante desse contexto, o presente projeto propõe o desenvolvimento de uma plataforma web centralizada para a gestão de calendários de corridas de rua, substituindo o uso de ferramentas genéricas por um ambiente dedicado ao ecossistema esportivo. A aplicação visa conectar corredores e organizadores em uma interface única, onde seja possível filtrar eventos por mês e distância, consulta detalhes técnicos das provas e unificar o acesso a resultados e coberturas fotográficas. 
+
+Sendo assim, o problema de pesquisa  que este trabalho buscar responder é: de que forma a implementação de um sistema web centrallizado pode otimizar a gestão da informação, substituindo o uso de planilhas informais e melhorando a experiência de atleta e  organizadores de corridas de rua? 
+
+O objetivo geral deste estudo é desenvolver um sistema web interativo para centralizar a gestão e a divulgação do calendário de corridas de rua, facilitando o acesso à informação para os atletas e otimizando o cadastro de provas para os organizadores. Para alcançar essa meta, os objetivos específicos englobam: mapear os requisitos necessários para o painel do organizador e para o perfil do corredor; modelar o banco de dados para suportar inscrições, resultados e histórico de desempenho; desenvolver o back-end da aplicação garantindo a integridade dos dados; e realizar a validação do sistema por meio de teste de usabilidade com usuários finas.
+
+Em síntese, a escolha do tema fundamenta-se na necessidade prática de profissionalizar e modernizar a gestão de eventos esportivos locais. A centralização das informações em uma plataforma digital não apenas facilita o acesso rápido e confiável aos dados para os corredores, permitindo um acompanhamento claro do seu histórico de provas, mas também fornece aos organizadores uma ferramenta robusta de administração. Ao substituir o uso de planilhas fragmentadas por um sistema web estruturado, elimina-se o retrabalho, reduz-se a margem de erros na comunicação entre as partes e fomenta-se o ecossistema esportivo da região, entregando uma solução tecnológica que resolve uma dor real e diária de quem pratica e de quem promove o esporte.Como delimitação da pesquisa, o escopo do sistema desenvolvido focará nas funcionalidades essenciais para a interação entre atletas e organizadores em nível regional. A plataforma priorizará a organização do calendário anual, a estruturação de perfis de usuários e a centralização de informações cruciais (como mapas de percurso, links de inscrição e direcionamento para plataformas de fotografia). Neste primeiro momento, o projeto não abrangerá o processamento de transações financeiras nativas, garantindo que o desenvolvimento se concentre na resolução do gargalo principal de comunicação e na viabilidade técnica do protótipo.
+
+GESTÃO ESPORTIVA E TECNOLOGIA DA INFORMAÇÃO APLICADA
+
+A construção de uma plataforma voltada para o gerenciamento de eventos esportivos requer uma fundamentação teórica sólida, capaz de integrar os conceitos de administração esportiva com as modernas práticas de engenharia de software. No cenário atual, a tecnologia da informação deixou de ser apenas uma ferramenta de suporte técnico e passou a atuar como um elemento estratégico indispensável para a democratização, organização e fomento do esporte de massa. Conforme destacam Laudon e Laudon (2014), a criação de sistemas integrados desempenha um papel crucial ao transformar processos analógicos e descentralizados em fluxos de informação dinâmicos, seguros e acessíveis, garantindo vantagem operacional e melhoria na prestação de serviços à sociedade.
+
+Com o intuito de fundamentar o desenvolvimento da plataforma proposta, este capítulo reúne as bases conceituais e a literatura científica que amparam a interseção entre a administração esportiva e a tecnologia da informação. A linha de raciocínio estabelecida parte da compreensão histórica e social do crescimento das corridas de rua, identificando o surgimento de demandas por uma gestão profissionalizada no setor de eventos.
+
+A partir desse cenário de expansão, discute-se o papel estratégico dos Sistemas de Informação na otimização de processos organizacionais, demonstrando a transição necessária de rotinas manuais para fluxos digitais centralizados. Para sustentar a usabilidade desse ambiente, abordam-se os critérios de Experiência do Usuário aplicados à consolidação de dados de forma intuitiva, finalizando com a análise técnica sobre a arquitetura de painéis administrativos projetados para o monitoramento gerencial e o acompanhamento de métricas de desempenho.
+
+A evolução das corridas de rua e necessidade de gestão esportiva
+
+A prática da corrida de rua transformou-se em um fenômeno impulsionado pela procura coletiva por qualidade de vida e integração social. Em municípios com forte dinamismo econômico, a proliferação desses eventos passou a movimentar intensamente o setor de serviços local.
+
+Contudo, o aumento do número de praticantes e a complexidade logística que envolve a realização de uma prova geraram exigências organizacionais que as ferramentas informais já não conseguem suprir com eficácia. A organização de cronogramas, inscrições, entrega de kits, divulgação de informações e acompanhamento dos participantes exige maior controle e integração entre diferentes etapas do evento.
+
+Nesse sentido, Pires e Sarmento (2001, p. 42) apontam que o crescimento do mercado esportivo exige a substituição do amadorismo por técnicas de gestão profissionalizadas. Para os autores, o controle da informação e a comunicação clara com o público são requisitos importantes para o sucesso do evento.
+
+Apesar dessa necessidade teórica, a gestão atual de muitas provas ainda esbarra na fragmentação tecnológica, dependendo frequentemente de planilhas estáticas e redes sociais para gerir cronogramas, inscrições e entrega de kits. Esse modelo pode dificultar a atualização das informações e aumentar a possibilidade de falhas na comunicação entre organizadores e participantes.
+
+Com base nessa realidade, torna-se evidente a importância de aplicar os conceitos de gestão esportiva por meio de soluções tecnológicas dedicadas. A transição de planilhas manuais para uma plataforma web estruturada permite que os promotores façam a gestão dos eventos de forma mais transparente e oferece aos atletas um canal centralizado para o planejamento do seu calendário, contribuindo para a profissionalização do ecossistema esportivo.
+
+Sistema de Informação na otimização de processo 
+
+Os Sistemas de Informação (SI) deixaram de ser um local de armazenamento de dados para se tornarem ferramentas indispensáveis na reestruturação e otimização de fluxos de trabalho organizacionais. Nas mais diversas áreas, a substituição de processos manuais, baseados em papéis ou planilhas eletrônicas isoladas, por sistemas web integrados possibilita maior agilidade, redução do retrabalho e confiabilidade na manipulação das informações. A automação de rotinas operacionais permite que dados complexos sejam centralizados e distribuídos em tempo real, gerando valor tanto para quem gerencia a plataforma quanto para o usuário final.
+
+Conforme definem Laudon e Laudon (2014, p. 15), um sistema de informação pode ser entendido como um conjunto de componentes inter-relacionados que coletam, processam, armazenam e distribuem informações para apoiar a tomada de decisões e o controle em uma organização. Os autores ressaltam que a eficácia de um sistema reside na sua capacidade de transformar dados brutos em fluxos estruturados de conhecimento útil, eliminando gargalos operacionais e melhorando a comunicação externa.
+
+Ao analisar essa perspectiva teórica voltada para o contexto esportivo regional, compreende-se a urgência de migrar os antigos calendários de eventos para uma estrutura de SI formalizada. A centralização proposta neste projeto materializa o conceito de processamento e distribuição de dados defendido pelos autores. Substituir a dependência de planilhas estáticas por um banco de dados moderno e escalável  gerido em ambiente em Node.js e MongoDB assegura que cada alteração realizada pelo organizador seja refletida instantaneamente para todos os atletas, mitigando falhas de comunicação e conferindo maturidade de gestão ao circuito de eventos da região. A adoção dessa estrutura de informação no contexto do RunnersRun permite que a organização dos dados escale conforme a demanda.
+
+ Experiência do Usuário e Centralização de Dados
+
+O sucesso de uma aplicação web está diretamente atrelado à qualidade da Experiência do Usuário, conceito que abrange todos os aspectos da interação do indivíduo com o software, incluindo sua facilidade de uso, utilidade e eficiência. Em sistemas que lidam com grandes volumes de informação ou com a necessidade de consultas frequentes, a arquitetura da informação e o design de interface devem atuar de forma combinada para diminuir a carga cognitiva do usuário, permitindo que ele encontre o que necessita com o mínimo de esforço possível.
+
+Segundo Garrett (2011, p. 10), o desenvolvimento focado na experiência do usuário consiste em garantir que o software funcione exatamente de acordo com as expectativas e necessidades reais do público-alvo, organizando os elementos de tela de forma intuitiva. O autor enfatiza que uma boa arquitetura de dados em ambientes web deve priorizar a centralização das informações essenciais, evitando que o usuário precise navegar por múltiplos canais desconexos para concluir uma tarefa simples.
+
+Com base nas premissas de UX estabelecidas pelo autor, o desenvolvimento do calendário interativo e do perfil do corredor atende diretamente aos critérios de usabilidade e centralização. O design responsivo planejado permite que o atleta filtre as provas por mês e distância através de um fluxo limpo e direto, eliminando a frustração histórica de buscar dados em arquivos dispersos ou redes sociais. Assim, o sistema aplica a fundamentação técnica de UX para transformar o acesso ao calendário esportivo em uma experiência integrada, acessível e agradável ao cidadão. A aplicação rigorosa desses princípios de UX no desenvolvimento da plataforma assegura que a barreira tecnológica não seja um empecilho para o usuário final.
+
+Painéis de Gestão ( Dashboards ) e Acompanhamento de Desempenho
+
+Os painéis de gestão, amplamente conhecidos como dashboards, são interfaces visuais projetadas para consolidar e exibir informações críticas de maneira clara, objetiva e de rápida leitura.
+
+No desenvolvimento de sistemas modernos, essas telas podem assumir diferentes funções. Em ambientes administrativos, auxiliam na visualização de informações relacionadas ao funcionamento do sistema, enquanto, para o usuário final, podem atuar como espaços de acompanhamento de métricas, históricos e indicadores de desempenho.
+
+Como salienta Few (2013, p. 26), um dashboard eficiente deve organizar múltiplos fluxos de dados em uma única tela de forma visualmente hierarquizada, permitindo que as informações principais sejam absorvidas de imediato. O autor aponta ainda que a correta exibição gráfica de dados históricos favorece a identificação de padrões e o acompanhamento das atividades desenvolvidas.
+
+A aplicação prática desse conceito no software proposto divide-se entre o painel do organizador e o espaço do atleta. No painel administrativo, os promotores podem acompanhar os eventos cadastrados e visualizar informações relacionadas à agenda geral.
+
+Da mesma forma, o hub de resultados e estatísticas do corredor traduz o conceito de exibição de desempenho, apresentando informações que auxiliam o competidor a monitorar sua evolução nos circuitos regionais. Dessa maneira, a plataforma busca consolidar dados administrativos e esportivos em interfaces de consulta mais organizadas.
+
+METODOLOGIA
+
+A metodologia científica constitui o conjunto de processos, regras e postulados sistemáticos utilizados por uma disciplina para orientar a condução de uma investigação e a obtenção de resultados confiáveis. Conforme ensinam Marconi e Lakatos (2021, p. 83), o método científico caracteriza-se pela ordenação racional e instrumental de procedimentos que viabilizam alcançar os objetivos propostos com segurança, estabelecendo o caminho lógico percorrido entre a identificação do problema e a construção da solução.
+
+No campo da Ciência da Computação e da Engenharia de Software, o rigor metodológico ganha uma dimensão aplicada, articulando a investigação científica de campo ao processo sistemático de construção de artefatos digitais. Segundo Pressman e Maxim (2021, p. 18), uma abordagem metodológica em engenharia de software fornece a estrutura de trabalho necessária para estabelecer etapas bem definidas de comunicação, planejamento, modelagem, construção e validação, assegurando a rastreabilidade dos requisitos e a qualidade técnica do produto final desenvolvido.
+
+Sob essa perspectiva, a metodologia deste trabalho foi definida de acordo com o objetivo de desenvolver e avaliar uma aplicação voltada à centralização de informações sobre corridas de rua realizadas em Parauapebas, no estado do Pará. Para isso, a pesquisa envolveu etapas interligadas de identificação do problema prático, levantamento empírico das necessidades dos usuários, definição formal dos requisitos do sistema, modelagem arquitetural, desenvolvimento da aplicação e realização de testes de usabilidade e funcionalidade.
+
+Os procedimentos adotados buscaram relacionar a investigação contextual das necessidades reais de atletas e organizadores com o desenvolvimento do software. As informações obtidas durante a pesquisa serviram como base para a definição das funcionalidades incorporadas à plataforma RunnersRun.
+
+O processo metodológico foi organizado de forma sistemática e sequencial. Inicialmente, foram analisadas as formas utilizadas para organização e divulgação das informações relacionadas às corridas de rua no município. Em seguida, foram levantadas as demandas e gargalos operacionais enfrentados pelos possíveis usuários do sistema. A partir dessas informações, foram formalizados os requisitos funcionais e não funcionais, realizada a modelagem da arquitetura e dos dados, implementadas as funcionalidades da aplicação e executados testes funcionais e de usabilidade para verificar o comportamento e a robustez da solução desenvolvida.
+
+Tipo de estudo
+
+Em relação à abordagem do problema, serão utilizados elementos qualitativos e quantitativos. A dimensão qualitativa estará relacionada à interpretação das necessidades, dificuldades e percepções apresentadas pelos participantes, enquanto a dimensão quantitativa permitirá organizar dados provenientes de questões fechadas e indicadores obtidos durante a validação da aplicação. A utilização complementar dessas abordagens possibilita uma compreensão mais ampla do objeto investigado.
+
+Como procedimentos para obtenção das informações necessárias ao desenvolvimento do sistema, será realizada análise documental de materiais utilizados na divulgação e organização das corridas, como calendários, planilhas e publicações referentes aos eventos. Também será utilizado questionário em meio digital com participantes relacionados ao contexto das corridas de rua, buscando identificar dificuldades na obtenção de informações, dados considerados importantes e expectativas quanto às funcionalidades da plataforma.
+
+As informações levantadas servirão de base para a definição e priorização dos requisitos funcionais e não funcionais do sistema.
+
+Método de desenvolvimento de projeto
+
+O desenvolvimento da aplicação será conduzido de maneira iterativa e incremental, permitindo que as funcionalidades sejam construídas, verificadas e aperfeiçoadas progressivamente. Essa estratégia possibilita realizar ajustes durante o desenvolvimento conforme novos requisitos ou necessidades sejam identificados. Pressman e Maxim (2021) destacam que abordagens iterativas favorecem a evolução gradual do software e permitem incorporar avaliações e modificações ao longo do processo de construção.
+
+Inicialmente, será realizado o levantamento das necessidades relacionadas ao contexto das corridas de rua e a identificação dos requisitos necessários para atender atletas e organizadores. Esses requisitos serão organizados de acordo com as principais operações esperadas da plataforma, incluindo consulta e filtragem de eventos, apresentação de informações detalhadas sobre as provas, gerenciamento dos eventos pelos organizadores e disponibilização de informações relacionadas à participação dos atletas.
+
+Após a definição dos requisitos, será realizada a modelagem da aplicação, abrangendo a organização das entidades e relacionamentos do banco de dados, a estrutura das principais interfaces e os fluxos de interação dos usuários com o sistema. A modelagem terá como finalidade estabelecer uma representação prévia da solução antes da implementação das funcionalidades.
+
+Na etapa de implementação, as funcionalidades serão desenvolvidas progressivamente, permitindo que cada módulo seja testado antes de sua integração às demais partes da aplicação. Após a implementação de cada conjunto de funcionalidades, serão realizados testes destinados à identificação de erros, verificação do comportamento esperado e realização de ajustes.
+
+Ao final dos ciclos de desenvolvimento, será realizada a validação das principais funcionalidades da plataforma, considerando os requisitos previamente estabelecidos e a interação dos usuários com o sistema. Os problemas identificados durante essa etapa serão utilizados como referência para novos ajustes e refinamentos.
+
+Planejamento e Análise de Viabilidade
+
+O planejamento do projeto será realizado considerando o escopo definido para a primeira versão da aplicação, os recursos tecnológicos disponíveis e o período destinado ao desenvolvimento do Trabalho de Conclusão de Curso. A delimitação do escopo busca concentrar os esforços nas funcionalidades diretamente relacionadas ao problema de pesquisa, evitando a inclusão de recursos que não sejam essenciais para a validação inicial da proposta.
+
+A análise de viabilidade compreenderá aspectos técnicos, operacionais e temporais. A viabilidade técnica será analisada considerando a disponibilidade de tecnologias adequadas ao desenvolvimento de aplicações web, armazenamento de dados, autenticação de usuários e implementação das funcionalidades previstas. Também será considerada a possibilidade de manutenção e evolução futura da aplicação.
+
+A viabilidade operacional estará relacionada à capacidade da plataforma de atender às atividades executadas pelos dois principais perfis considerados no projeto. Para os atletas, serão priorizadas funcionalidades relacionadas à localização e consulta das informações das corridas. Para os organizadores, serão consideradas operações destinadas ao cadastro, atualização e gerenciamento dos eventos.
+
+A viabilidade temporal será analisada a partir da compatibilidade entre o conjunto de funcionalidades planejadas e o período disponível para desenvolvimento, testes e documentação do projeto. Dessa forma, funcionalidades consideradas complementares ou que demandem maior infraestrutura poderão ser destinadas a versões futuras.
+
+Conforme a delimitação estabelecida para este trabalho, a primeira versão da plataforma não terá como finalidade realizar diretamente transações financeiras relacionadas às inscrições. O sistema priorizará a centralização do calendário, informações técnicas das provas, formas de acesso às inscrições, percursos, resultados e demais conteúdos relevantes para atletas e organizadores.
+
+Garantia de Qualidade
+
+A garantia da qualidade será incorporada ao processo de desenvolvimento por meio da definição de requisitos não funcionais e da execução de testes ao longo da implementação da plataforma. Pressman e Maxim (2021) destacam que a qualidade de software deve ser considerada durante todo o processo de desenvolvimento, e não apenas após a conclusão do produto.
+
+Como referência para a avaliação das características de qualidade do software, serão considerados princípios presentes na ISO/IEC 25010:2023, que estabelece um modelo para especificação e avaliação da qualidade de produtos de software. Entre os aspectos particularmente relevantes para a aplicação proposta estão a adequação funcional, a eficiência de desempenho, a capacidade de interação, a confiabilidade, a segurança e a manutenibilidade (ISO/IEC, 2023).
+
+A adequação funcional será verificada observando se as funcionalidades implementadas realizam corretamente as operações definidas nos requisitos. A capacidade de interação será considerada na organização das interfaces e na facilidade encontrada pelos usuários para localizar informações e executar tarefas. A segurança será observada especialmente nos mecanismos relacionados à autenticação, autorização e proteção das informações armazenadas.
+
+Serão realizados testes funcionais para verificar individualmente as principais funcionalidades da aplicação e sua correspondência com os resultados esperados. Também serão realizados testes de interface e responsividade, considerando diferentes dimensões de tela, além de testes relacionados aos fluxos de autenticação, cadastro, consulta, alteração e gerenciamento dos dados.
+
+Durante a validação com usuários, serão observados aspectos como compreensão da interface, facilidade para execução das tarefas propostas e dificuldades encontradas durante a navegação. Os problemas identificados serão registrados e utilizados para orientar ajustes posteriores na aplicação.
+
+Aspectos éticos
+
+A realização da pesquisa observará princípios de privacidade, confidencialidade, participação voluntária e proteção das informações fornecidas pelos participantes. Antes da participação nos instrumentos de pesquisa e nos testes de validação, os participantes serão informados sobre os objetivos do estudo, a finalidade da coleta das informações e a possibilidade de interromper sua participação.
+
+As informações obtidas serão utilizadas exclusivamente para fins acadêmicos e para apoiar o desenvolvimento e a avaliação da aplicação. Na apresentação dos resultados, será evitada a exposição de dados que permitam a identificação individual dos participantes.
+
+Por envolver a obtenção de informações junto a pessoas, os procedimentos da pesquisa deverão observar as orientações institucionais aplicáveis e as disposições da Resolução nº 510, de 7 de abril de 2016, do Conselho Nacional de Saúde, que estabelece normas aplicáveis às pesquisas em Ciências Humanas e Sociais que utilizam dados obtidos diretamente dos participantes (BRASIL, 2016). A necessidade de submissão e apreciação pelo sistema CEP/CONEP deverá seguir o enquadramento da pesquisa e as orientações do Comitê de Ética e da instituição de ensino antes do início da coleta de dados.
+
+Também serão considerados os princípios estabelecidos pela Lei nº 13.709, de 14 de agosto de 2018, Lei Geral de Proteção de Dados Pessoais (LGPD), especialmente no que se refere à finalidade, necessidade, segurança e proteção dos dados pessoais tratados durante a pesquisa e pela própria aplicação (BRASIL, 2018).
+
+A coleta deverá limitar-se às informações necessárias para os objetivos definidos, evitando a obtenção de dados pessoais que não apresentem relação direta com a pesquisa.
+
+Critérios de inclusão e exclusão
+
+Para a etapa de levantamento das necessidades e validação da plataforma, serão considerados dois principais grupos de participantes: praticantes de corrida de rua e pessoas que atuem na organização ou gerenciamento de eventos esportivos relacionados à modalidade.
+
+Como critérios de inclusão para os atletas, serão considerados participantes com idade igual ou superior a 18 anos, que pratiquem corrida de rua e que possuam experiência na busca por informações ou participação em eventos realizados em Parauapebas ou região. Para os organizadores, poderão participar indivíduos maiores de 18 anos que tenham experiência na organização, divulgação ou gerenciamento de corridas de rua.
+
+Em ambos os grupos, será necessária a concordância voluntária em participar da pesquisa e o atendimento às orientações apresentadas no instrumento de coleta.
+
+Serão excluídos participantes menores de 18 anos, pessoas que não possuam relação com o contexto investigado, respostas duplicadas ou instrumentos com preenchimento insuficiente para análise. Também serão desconsideradas as informações de participantes que manifestem desistência ou solicitem a interrupção de sua participação antes da consolidação dos dados, conforme as condições estabelecidas para a pesquisa.
+
+Esses critérios têm como finalidade assegurar que as informações analisadas sejam provenientes de participantes com experiência compatível com o objeto de estudo e possam contribuir diretamente para a definição e avaliação das funcionalidades da plataforma.
+
+RESULTADOS E DISCUSSÃO
+
+Quando o TCC (monografia) adota o formato de “Resultados e Discussão” em um único tópico, significa que o pesquisador apresenta os dados já acompanhados de interpretação e análise, em vez de separar o que foi encontrado (resultados) do que isso significa (discussão). Nesse modelo, a escrita se torna mais dinâmica e analítica, pois cada dado apresentado já é imediatamente explicado, contextualizado e relacionado à teoria.
+
+Em termos conceituais, essa seção reúne dois movimentos simultâneos:
+
+Resultados: o que foi encontrado na pesquisa;
+
+Discussão: o que esses achados significam, como se relacionam com outros estudos e quais são suas implicações.
+
+Assim, o texto não deve apenas descrever dados, mas também interpretá-los, compará-los com a literatura e conectá-los aos objetivos da pesquisa.
+
+A forma de apresentação varia conforme o tipo de pesquisa.
+
+Na pesquisa de campo, o ideal é organizar o capítulo por categorias de análise ou por objetivos específicos. Em pesquisas quantitativas, o pesquisador pode apresentar um gráfico ou tabela e, logo em seguida, interpretar os dados, explicando tendências, padrões ou relações encontradas. Essa interpretação deve ser sustentada por autores do referencial teórico, indicando se os resultados confirmam ou divergem da literatura. Em pesquisas qualitativas, o autor apresenta uma categoria (por exemplo, um tema identificado nas entrevistas), insere trechos das falas dos participantes e, em seguida, analisa esses conteúdos, explicando seus significados e relacionando-os com teorias. Já em pesquisas mistas, há a integração desses dois tipos de dados, articulando números e interpretações em uma mesma lógica analítica. O mais importante é que cada apresentação de dado venha acompanhada de reflexão crítica.
+
+No estudo de caso (relato de caso), os resultados e a discussão aparecem de forma integrada na própria descrição do caso. O pesquisador apresenta o contexto, os acontecimentos, os dados coletados e, ao mesmo tempo, analisa o que está sendo observado. Por exemplo, ao descrever um processo organizacional ou uma intervenção realizada, o autor já interpreta seus efeitos, relaciona com conceitos teóricos e discute suas implicações. Esse tipo de abordagem valoriza a profundidade e a compreensão do fenômeno em seu contexto real, sendo comum alternar entre descrição e análise ao longo do texto.
+
+Nas pesquisas de revisão (integrativa, de escopo ou sistemática), a integração entre resultados e discussão ocorre na forma de síntese crítica da literatura. O autor apresenta os achados dos estudos analisados (por exemplo, tendências, categorias temáticas ou dados recorrentes) e, simultaneamente, discute esses achados, destacando convergências, divergências e lacunas. Em muitos casos, utilizam-se quadros ou tabelas com a caracterização dos estudos e, em seguida, desenvolvem-se análises por categorias. Na revisão sistemática, essa integração tende a ser mais estruturada e rigorosa; na integrativa, há maior flexibilidade interpretativa; e na de escopo, o foco está no mapeamento do conhecimento, mas ainda assim com análise crítica do panorama encontrado.
+
+Independentemente do tipo de pesquisa, alguns cuidados são essenciais ao trabalhar com “Resultados e Discussão” juntos:
+
+evitar separar artificialmente descrição e análise;
+
+garantir que todo dado apresentado seja interpretado;
+
+utilizar citações para sustentar a discussão;
+
+manter alinhamento com os objetivos da pesquisa;
+
+organizar o texto de forma lógica, geralmente por subtópicos.
+
+A linguagem deve ser formal, analítica e argumentativa, demonstrando que o pesquisador não apenas coletou dados, mas também compreendeu seu significado e sua relevância científica.
+
+Quando resultados e discussão estão no mesmo capítulo, o TCC ganha mais fluidez e profundidade, pois o leitor acompanha, ao mesmo tempo, o que foi encontrado e como isso contribui para responder ao problema de pesquisa, evidenciando a maturidade acadêmica do autor. Se quiser, posso montar um modelo pronto desse capítulo, já estruturado com subtópicos e exemplos aplicados ao seu tema.
+
+Quando o TCC (monografia) adota a estrutura com Resultados e Discussão em capítulos separados, há uma divisão clara entre dois momentos distintos da pesquisa: primeiro, apresenta-se o que foi encontrado; depois, analisa-se o que esses achados significam. Essa separação é muito valorizada em trabalhos acadêmicos mais formais, pois contribui para maior organização, clareza metodológica e rigor científico.
+
+O capítulo de Resultados deve ser objetivo, descritivo e fiel aos dados coletados, sem aprofundar interpretações. Nesse momento, o pesquisador apresenta as informações obtidas por meio da pesquisa, utilizando textos explicativos, tabelas, gráficos, quadros ou categorias analíticas, dependendo do tipo de estudo. O foco é mostrar os achados de forma clara e organizada, sempre alinhados aos objetivos da pesquisa. É importante evitar opiniões ou explicações mais profundas nesse capítulo, limitando-se a evidenciar os dados e destacar pontos relevantes.
+
+Já o capítulo de Discussão é o espaço destinado à interpretação e análise crítica dos resultados. Aqui, o pesquisador retoma os principais achados e passa a explicar seus significados, relacionando-os com o referencial teórico, com estudos anteriores e com o problema de pesquisa. É nesse momento que se constrói o diálogo entre teoria e prática, demonstrando se os resultados confirmam, ampliam ou contradizem o que já foi estudado na área. A discussão também pode abordar implicações dos resultados, contribuições do estudo, limitações da pesquisa e sugestões para trabalhos futuros.
+
+Na pesquisa de campo, essa separação fica bastante evidente. Nos resultados, apresentam-se os dados coletados (estatísticas, respostas, categorias, falas, observações). Na discussão, esses dados são interpretados, explicando tendências, significados e relações com a literatura. Em estudos quantitativos, por exemplo, os resultados mostram os números; na discussão, esses números são analisados. Em estudos qualitativos, os resultados apresentam categorias e trechos de falas; na discussão, essas categorias são interpretadas à luz da teoria.
+
+No estudo de caso (relato de caso), o capítulo de resultados descreve o caso em si, apresentando os dados, acontecimentos, processos e evidências observadas. Já na discussão, o pesquisador analisa o caso, explicando suas particularidades, relacionando com conceitos teóricos e destacando aprendizados e implicações práticas.
+
+Nas pesquisas de revisão (integrativa, de escopo ou sistemática), os resultados correspondem à organização dos estudos selecionados, muitas vezes apresentados em quadros, tabelas e categorias temáticas. A discussão, por sua vez, consiste na análise crítica dessa produção científica, destacando padrões, convergências, divergências, lacunas e tendências da literatura.
+
+Ao optar por essa estrutura separada, o pesquisador deve ter cuidado para manter coerência entre os capítulos. Os resultados devem fornecer base suficiente para a discussão, e a discussão deve retomar diretamente os achados apresentados anteriormente, evitando trazer informações novas que não tenham sido previamente expostas.
+
+A linguagem também deve respeitar a função de cada seção:
+
+nos Resultados, predominam descrição, objetividade e neutralidade;
+
+na Discussão, prevalecem análise, argumentação e fundamentação teórica.
+
+Portanto, quando resultados e discussão são apresentados separadamente, o TCC ganha em clareza, organização e profundidade analítica, permitindo que o leitor compreenda primeiro os dados obtidos e, em seguida, sua interpretação crítica, evidenciando o rigor e a maturidade científica do trabalho.
+
+Análise de requisitos
+
+A análise de requisitos constituiu uma etapa fundamental para o desenvolvimento da aplicação, pois permitiu identificar as necessidades do sistema, definir suas funcionalidades e estabelecer os critérios de qualidade esperados. Essa fase foi baseada na compreensão do problema de pesquisa e nas demandas dos usuários finais, garantindo que a solução proposta fosse alinhada ao contexto real de aplicação.
+
+Os requisitos foram classificados em requisitos funcionais e não funcionais, conforme preconiza a engenharia de software, permitindo uma organização mais clara e estruturada das especificações do sistema.
+
+Requisitos Funcionais
+
+Os requisitos funcionais descrevem as funcionalidades que o sistema deve oferecer, ou seja, as ações que a aplicação deve ser capaz de executar para atender às necessidades dos usuários.
+
+Dentre os principais requisitos funcionais identificados, destacam-se:
+
+Cadastro de usuários no sistema; 
+
+Autenticação e controle de acesso; 
+
+Cadastro e gerenciamento de informações (ex: dados, registros ou conteúdos específicos do sistema); 
+
+Visualização de informações em formato organizado; 
+
+Atualização e exclusão de registros; 
+
+Interação entre usuários e sistema por meio de interfaces intuitivas. 
+
+A definição desses requisitos permitiu estabelecer claramente o escopo funcional da aplicação, garantindo que o sistema fosse capaz de resolver o problema proposto de forma eficiente.
+
+Requisitos Não Funcionais
+
+Os requisitos não funcionais estão relacionados às características de qualidade do sistema, como desempenho, segurança, usabilidade e confiabilidade.
+
+Entre os principais requisitos não funcionais definidos, destacam-se:
+
+Interface responsiva e adaptável a diferentes dispositivos; 
+
+Tempo de resposta adequado para as operações do sistema; 
+
+Segurança no armazenamento e tratamento dos dados dos usuários; 
+
+Facilidade de uso (usabilidade); 
+
+Manutenibilidade do código; 
+
+Escalabilidade da aplicação. 
+
+Esses requisitos foram essenciais para garantir que a aplicação não apenas funcionasse corretamente, mas também oferecesse uma experiência satisfatória ao usuário.
+
+Funcionalidades da aplicação
+
+A aplicação desenvolvida apresenta um conjunto de funcionalidades que visam atender às necessidades identificadas na fase de levantamento de requisitos.
+
+Entre as principais funcionalidades implementadas, destacam-se:
+
+Sistema de autenticação de usuários; 
+
+Painel de controle com visualização de dados; 
+
+Cadastro e gerenciamento de informações; 
+
+Interface interativa e de fácil navegação; 
+
+Integração entre diferentes módulos do sistema. 
+
+A implementação dessas funcionalidades permitiu a construção de uma solução prática e aplicável, capaz de atender ao objetivo geral do trabalho.
+
+Tecnologias utilizadas
+
+A escolha das tecnologias foi realizada com base em critérios como eficiência, escalabilidade, facilidade de desenvolvimento e aderência ao problema proposto.
+
+Dentre as principais tecnologias utilizadas no desenvolvimento da aplicação, destacam-se:
+
+Back-end: Django (framework web em Python); 
+
+Front-end: HTML, CSS, JavaScript e Bootstrap; 
+
+Banco de dados: SQLite/PostgreSQL; 
+
+Ferramentas de desenvolvimento: VS Code, Git e GitHub. 
+
+A utilização dessas tecnologias possibilitou o desenvolvimento de uma aplicação robusta, segura e de fácil manutenção, alinhada às boas práticas de desenvolvimento de software.
+
+Plataforma de desenvolvimento
+
+A plataforma de desenvolvimento foi estruturada de forma a permitir um fluxo de trabalho organizado e eficiente durante a construção da aplicação.
+
+O ambiente de desenvolvimento incluiu:
+
+Sistema operacional compatível com ferramentas de desenvolvimento web; 
+
+Ambiente virtual para gerenciamento de dependências; 
+
+Controle de versão utilizando Git; 
+
+Organização do projeto seguindo o padrão MVC (Model-View-Template, no caso do Django). 
+
+Essa estrutura contribuiu para a organização do código, facilitando o desenvolvimento, a manutenção e futuras expansões da aplicação.
+
+Visão geral da ferramenta
+
+A ferramenta desenvolvida consiste em uma aplicação web que permite aos usuários interagir com o sistema de forma intuitiva, realizando operações de cadastro, consulta e gerenciamento de dados.
+
+De forma geral, o sistema é composto por:
+
+Interface de usuário (front-end); 
+
+Lógica de aplicação (back-end); 
+
+Banco de dados para armazenamento das informações. 
+
+A navegação foi projetada para ser simples e eficiente, permitindo que o usuário realize suas tarefas com o mínimo de esforço. Além disso, a organização dos elementos visuais contribui para uma melhor experiência do usuário.
+
+Testes e resultados 
+
+A etapa de testes foi realizada com o objetivo de validar o funcionamento da aplicação e verificar se os requisitos definidos foram atendidos.
+
+Foram realizados testes funcionais, nos quais cada funcionalidade do sistema foi avaliada individualmente, bem como testes de usabilidade, focados na experiência do usuário.
+
+Os resultados indicaram que:
+
+O sistema atende aos requisitos funcionais propostos; 
+
+As operações são executadas corretamente; 
+
+A interface apresenta boa usabilidade; 
+
+O desempenho é satisfatório para o contexto da aplicação. 
+
+A análise dos resultados demonstra que a solução desenvolvida é viável e eficaz, contribuindo para a resolução do problema de pesquisa e apresentando potencial para aplicação em contextos reais.
+
+CONCLUSÃO
+
+A conclusão ou as considerações finais são a última seção do TCC e têm como principal objetivo encerrar o trabalho de forma coerente, retomando o problema de pesquisa, os objetivos e os principais resultados, além de apresentar as contribuições do estudo. É o momento em que o pesquisador demonstra, de forma sintética e reflexiva, o que foi alcançado com a pesquisa.
+
+Para elaborar essa seção, o primeiro passo é retomar o problema de pesquisa e indicar claramente se ele foi respondido. Em seguida, deve-se retomar o objetivo geral, explicando como ele foi atingido, e também os objetivos específicos, mostrando de que forma cada um contribuiu para o resultado final do estudo. Essa retomada não deve ser uma simples cópia da introdução, mas sim uma síntese interpretativa baseada nos achados da pesquisa.
+
+Depois disso, o autor deve apresentar os principais resultados, destacando os pontos mais relevantes encontrados ao longo do trabalho. Aqui não se trata de repetir detalhadamente os dados, mas de evidenciar as descobertas mais importantes e suas implicações. Em seguida, é fundamental destacar as contribuições da pesquisa, que podem ser acadêmicas (avanço teórico), práticas (aplicação em organizações ou contextos reais) ou sociais (impacto na comunidade).
+
+Outro elemento importante é a apresentação das limitações da pesquisa, reconhecendo possíveis restrições metodológicas, de tempo, de acesso a dados ou de abrangência do estudo. Isso demonstra maturidade científica e transparência. Por fim, é recomendável sugerir possibilidades para pesquisas futuras, indicando caminhos que outros pesquisadores podem seguir a partir do trabalho realizado.
+
+A linguagem da conclusão ou das considerações finais deve ser clara, objetiva, reflexiva e coerente, sem introduzir novos dados, tabelas ou citações extensas (salvo exceções muito pontuais). O foco é sintetizar e fechar o raciocínio desenvolvido ao longo do TCC.
+
+Quanto à diferença entre conclusão e considerações finais, ela é mais conceitual do que estrutural, mas importante:
+
+A conclusão é mais direta, objetiva e assertiva, sendo comum em pesquisas mais tradicionais, especialmente quantitativas. Ela tende a apresentar respostas mais fechadas, indicando claramente os resultados alcançados e o cumprimento dos objetivos.
+
+As considerações finais, por outro lado, possuem um caráter mais reflexivo, interpretativo e aberto, sendo muito utilizadas em pesquisas qualitativas ou exploratórias. Nessa abordagem, além de sintetizar os resultados, o autor pode refletir sobre o processo de pesquisa, destacar aprendizados, limitações e implicações mais amplas, reconhecendo que o conhecimento produzido não é definitivo, mas parte de uma construção contínua.
+
+Ambas cumprem a mesma função de encerramento do trabalho. A escolha entre uma ou outra depende do tipo de pesquisa, da abordagem metodológica e das orientações institucionais.
+
+Uma boa conclusão ou considerações finais deve fechar o TCC com coerência, demonstrar que os objetivos foram alcançados, evidenciar a relevância do estudo e apontar caminhos futuros, deixando clara a contribuição do trabalho para a área de conhecimento. Se quiser, posso montar um modelo pronto dessa seção adaptado ao seu tema.
+
+REFERÊNCIAS
+
+FUNDAÇÃO GETULIO VARGAS. Normas para apresentação de monografia. 3. ed. Escola de Administração de Empresas de São Paulo, Biblioteca Karl A. Boedecker. São Paulo: FGV-EAESP, 2003. 95 p. (normasbib.pdf, 462kb). Disponível em: <www.fgvsp.br/biblioteca>. Acesso em: 23 set. 2004.
+
+OLIVEIRA, N. M.; ESPINDOLA, C. R. Trabalhos acadêmicos: recomendações práticas. São Paulo: CEETPS, 2003.
+
+_____. Trabalhos acadêmicos: recomendações práticas. São Paulo: CEETPS, 2003.
+
+PÁDUA, E. M. M. de. Metodologia científica: abordagem teórico-prática. 10 ed. ver. atual. Campinas, SP: Papirus, 2004. 
+
+APÊNDICES 
+
+O apêndice no TCC é um elemento pós-textual que reúne materiais elaborados pelo próprio autor com o objetivo de complementar, esclarecer ou comprovar informações apresentadas no trabalho. Ele não faz parte do corpo principal do texto, mas é essencial para dar suporte à pesquisa, especialmente na metodologia e nos resultados.
+
+Em outras palavras, o apêndice contém conteúdos que foram produzidos pelo pesquisador durante o desenvolvimento do estudo e que seriam muito extensos ou detalhados para permanecer no texto principal, mas que precisam estar disponíveis para consulta, garantindo transparência e rigor científico.
+
+Entre os exemplos mais comuns de apêndices estão:
+
+questionários aplicados na pesquisa;
+
+roteiros de entrevistas;
+
+formulários utilizados na coleta de dados;
+
+termos de consentimento elaborados pelo pesquisador;
+
+modelos de instrumentos de análise;
+
+documentos produzidos no âmbito do estudo (como relatórios, propostas ou planos desenvolvidos).
+
+A principal característica do apêndice é que ele deve ser de autoria do próprio pesquisador. Isso o diferencia do anexo, que reúne documentos de terceiros (como leis, normas, artigos ou materiais institucionais).
+
+Na estrutura do TCC, os apêndices aparecem após as referências, organizados e identificados por letras maiúsculas, como:
+
+APÊNDICE A – Questionário aplicado aos participantes
+
+APÊNDICE B – Roteiro de entrevista semiestruturada
+
+APÊNDICE C – Formulário de coleta de dados
+
+Cada apêndice deve ter um título claro e, quando necessário, uma breve descrição. Além disso, é importante que ele seja citado ao longo do texto, indicando ao leitor onde encontrar aquele material (por exemplo: “conforme questionário apresentado no Apêndice A”). Embora o apêndice seja um elemento complementar, ele desempenha um papel importante na credibilidade da pesquisa, pois permite que outros pesquisadores compreendam exatamente como os dados foram coletados e, se necessário, possam replicar o estudo.
+
+ANEXO
+
+Os anexos no TCC são elementos pós-textuais utilizados para incluir documentos que não foram elaborados pelo autor, mas que são relevantes para a compreensão, fundamentação ou comprovação das informações apresentadas no trabalho.
+
+Diferentemente do apêndice (que contém materiais produzidos pelo próprio pesquisador), o anexo reúne conteúdos de terceiros, como documentos oficiais, legislações, normas, relatórios institucionais, imagens, tabelas ou qualquer material externo que contribua para o entendimento do estudo.
+
+Os anexos são utilizados quando o material é importante, mas não pode ou não deve ser inserido diretamente no corpo do texto, geralmente por ser muito extenso ou por quebrar a fluidez da leitura. Assim, eles funcionam como um suporte documental que reforça a credibilidade da pesquisa.
+
+Entre os exemplos mais comuns de anexos estão:
+
+leis, decretos ou normas técnicas;
+
+documentos institucionais (regulamentos, manuais, relatórios);
+
+prints de sistemas ou plataformas analisadas;
+
+mapas, gráficos ou tabelas de fontes externas;
+
+artigos ou trechos de documentos oficiais relevantes para o estudo.
+
+Na estrutura do TCC, os anexos aparecem após as referências (e após os apêndices, se houver), organizados e identificados por letras maiúsculas, como:
+
+ANEXO A – Lei nº XXXX/XXXX
+
+ANEXO B – Relatório institucional da organização X
+
+ANEXO C – Print do sistema analisado
+
+Cada anexo deve conter um título claro e, quando necessário, uma breve identificação do documento. Assim como os apêndices, os anexos devem ser citados ao longo do texto, indicando ao leitor sua localização (por exemplo: “conforme documento apresentado no Anexo A”).
+
+É importante destacar que os anexos devem ser utilizados com critério: apenas documentos realmente relevantes devem ser incluídos, evitando excesso de material desnecessário.
