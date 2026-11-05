@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/wavy_topography_header.dart';
-import '../../../../core/widgets/custom_text_field.dart';
-import '../../../../core/widgets/custom_button.dart';
+
+import '../../../../core/motion/rr_motion.dart';
+import '../../../../core/theme/rr_theme.dart';
+import '../../../../core/widgets/rr_button.dart';
+import '../../../../core/widgets/rr_feedback.dart';
+import '../../../../core/widgets/rr_field.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/auth_frame.dart';
 import 'register_screen.dart';
-import '../../../home/presentation/screens/main_navigation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +19,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _shakeKey = GlobalKey<RRShakeState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = true;
@@ -29,233 +32,106 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _shakeKey.currentState?.shake();
+      return;
+    }
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.login(
-      _emailController.text,
-      _passwordController.text,
-    );
+    final success = await authProvider.login(_emailController.text, _passwordController.text, remember: _rememberMe);
 
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-        (route) => false,
-      );
+      // O AuthWrapper, na raiz, passa a mostrar a área logada.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
-      final msg = authProvider.errorMessage ?? 'Não foi possível realizar o login.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(child: Text(msg)),
-            ],
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _shakeKey.currentState?.shake();
+      showRRToast(context, authProvider.errorMessage ?? 'Não foi possível realizar o login.', error: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final c = context.rr;
     final authProvider = context.watch<AuthProvider>();
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Top Wavy Header
-            WavyTopographyHeader(
-              height: size.height * 0.32,
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 48,
-                    left: 16,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Form Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 8.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return AuthFrame(
+      title: 'Entrar',
+      subtitle: 'Acesse sua conta para ver treinos e novidades.',
+      child: Form(
+        key: _formKey,
+        child: RRShake(
+          key: _shakeKey,
+          child: AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                RRField(
+                  controller: _emailController,
+                  label: 'E-mail',
+                  hint: 'exemplo@corredor.com',
+                  icon: 'email',
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Informe seu e-mail';
+                    if (!value.contains('@') || !value.contains('.')) return 'Informe um e-mail válido';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 18),
+                RRField(
+                  controller: _passwordController,
+                  label: 'Senha',
+                  hint: 'Digite sua senha',
+                  icon: 'senha',
+                  isPassword: true,
+                  autofillHints: const [AutofillHints.password],
+                  onSubmitted: (_) => _handleLogin(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Informe sua senha';
+                    if (value.length < 6) return 'A senha deve ter no mínimo 6 caracteres';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    const Text(
-                      'Entrar',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.5,
-                      ),
+                    Checkbox(value: _rememberMe, onChanged: (val) => setState(() => _rememberMe = val ?? true)),
+                    Text('Lembrar de mim', style: RRType.textM.copyWith(color: c.textSecondary)),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => showRRToast(context, 'Recuperação de senha em desenvolvimento.', icon: 'senha'),
+                      child: Text('Esqueceu a senha?', style: RRType.labelS.copyWith(color: c.textLink)),
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Acesse sua conta para ver treinos e novidades.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Campo de E-mail
-                    CustomTextField(
-                      controller: _emailController,
-                      label: 'E-mail',
-                      hintText: 'exemplo@corredor.com',
-                      prefixIcon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Informe seu e-mail';
-                        }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Informe um e-mail válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Campo de Senha
-                    CustomTextField(
-                      controller: _passwordController,
-                      label: 'Senha',
-                      hintText: 'Digite sua senha',
-                      prefixIcon: Icons.lock_outline,
-                      isPassword: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Informe sua senha';
-                        }
-                        if (value.length < 6) {
-                          return 'A senha deve ter no mínimo 6 dígitos';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Lembrar de mim e Esqueci a senha
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: Checkbox(
-                                value: _rememberMe,
-                                activeColor: AppColors.primaryBlue,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _rememberMe = val ?? true;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Lembrar de mim',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Função de recuperação em desenvolvimento.'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Esqueceu a senha?',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.primaryBlue,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Botão Principal de Login
-                    CustomButton(
-                      text: 'Entrar',
-                      isLoading: authProvider.isLoading,
-                      onPressed: _handleLogin,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Rodapé para ir ao Cadastro
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Não tem uma conta? ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Cadastre-se',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryBlue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                RRButton(
+                  'Entrar',
+                  size: RRButtonSize.l,
+                  expand: true,
+                  loading: authProvider.isLoading,
+                  onPressed: _handleLogin,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Não tem uma conta?', style: RRType.textM.copyWith(color: c.textSecondary)),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        RRPageRoute(builder: (_) => const RegisterScreen(), instant: RRMotion.reduced(context)),
+                      ),
+                      child: Text('Cadastre-se', style: RRType.labelM.copyWith(color: c.textLink)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

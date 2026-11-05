@@ -2,6 +2,13 @@ import { Response } from 'express';
 import { WorkoutPost } from '../models/WorkoutPost';
 import { User } from '../models/User';
 import { AuthenticatedRequest } from '../types';
+import {
+  MAX_WORKOUT_PHOTOS,
+  detectImageExtension,
+  isOwnPhotoPath,
+  removePhotos,
+  savePhoto,
+} from '../middlewares/uploadMiddleware';
 
 // Função utilitária para formatar segundos em HH:MM:SS
 const formatarTempo = (totalSegundos: number): string => {
@@ -23,6 +30,43 @@ const calcularPace = (distanciaKm: number, totalSegundos: number): string => {
   const minutos = Math.floor(segundosPorKm / 60);
   const segundos = Math.round(segundosPorKm % 60);
   return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')} min/km`;
+};
+
+// @desc    Enviar fotos de um treino (retorna os caminhos para usar ao publicar)
+// @route   POST /api/workouts/photos
+// @access  Privado (requer login)
+export const uploadWorkoutPhotos = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ sucesso: false, mensagem: 'Não autorizado.' });
+      return;
+    }
+
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    if (files.length === 0) {
+      res.status(400).json({ sucesso: false, mensagem: 'Nenhuma foto enviada.' });
+      return;
+    }
+
+    // Valida todas antes de gravar, para não deixar arquivos soltos no disco.
+    const extensions = files.map((file) => detectImageExtension(file.buffer));
+    if (extensions.includes(null)) {
+      res.status(400).json({ sucesso: false, mensagem: 'Envie fotos em JPG, PNG ou WebP.' });
+      return;
+    }
+
+    const userId = req.user._id.toString();
+    const paths = await Promise.all(
+      files.map((file, i) => savePhoto(file.buffer, extensions[i] as string, userId))
+    );
+
+    res.status(201).json({ sucesso: true, dados: paths });
+  } catch (error: any) {
+    res.status(500).json({
+      sucesso: false,
+      mensagem: error.message || 'Erro ao enviar fotos.',
+    });
+  }
 };
 
 // @desc    Criar novo treino/publicação na comunidade
@@ -55,6 +99,20 @@ export const createWorkout = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
+    const listaFotos: unknown[] = Array.isArray(fotos) ? fotos : [];
+    if (listaFotos.length > MAX_WORKOUT_PHOTOS) {
+      res.status(400).json({
+        sucesso: false,
+        mensagem: `Envie no máximo ${MAX_WORKOUT_PHOTOS} fotos por treino.`,
+      });
+      return;
+    }
+    // Aceita apenas fotos enviadas pelo próprio atleta, nunca links externos.
+    if (!listaFotos.every((foto) => isOwnPhotoPath(foto, req.user!._id.toString()))) {
+      res.status(400).json({ sucesso: false, mensagem: 'Foto inválida.' });
+      return;
+    }
+
     const distNum = Number(distanciaKm);
     const duracaoNum = Number(duracaoSegundos);
 
@@ -72,7 +130,7 @@ export const createWorkout = async (req: AuthenticatedRequest, res: Response): P
       paceMedio,
       altimetria: Number(altimetria) || 0,
       sensacaoEsforco: sensacaoEsforco || 'moderado',
-      fotos: Array.isArray(fotos) ? fotos : [],
+      fotos: listaFotos as string[],
       dataTreino: dataTreino ? new Date(dataTreino) : new Date(),
     });
 
@@ -263,6 +321,60 @@ export const addComment = async (req: AuthenticatedRequest, res: Response): Prom
   }
 };
 
+// @desc    Excluir um comentário
+// @route   DELETE /api/workouts/:id/comments/:commentId
+// @access  Privado (autor do comentário, dono do treino ou admin)
+export const deleteComment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ sucesso: false, mensagem: 'Não autorizado.' });
+      return;
+    }
+
+    const { id, commentId } = req.params;
+    const treino = await WorkoutPost.findById(id);
+    if (!treino) {
+      res.status(404).json({ sucesso: false, mensagem: 'Treino não encontrado.' });
+      return;
+    }
+
+    const index = treino.comentarios.findIndex((c) => c._id?.toString() === commentId);
+    if (index === -1) {
+      res.status(404).json({ sucesso: false, mensagem: 'Comentário não encontrado.' });
+      return;
+    }
+
+    const userId = req.user._id.toString();
+    const podeExcluir =
+      treino.comentarios[index].autor.toString() === userId ||
+      treino.atleta.toString() === userId ||
+      req.user.tipo === 'admin';
+    if (!podeExcluir) {
+      res.status(403).json({ sucesso: false, mensagem: 'Sem permissão para excluir este comentário.' });
+      return;
+    }
+
+    treino.comentarios.splice(index, 1);
+    await treino.save();
+
+    const treinoAtualizado = await WorkoutPost.findById(id).populate(
+      'comentarios.autor',
+      'nome avatarUrl'
+    );
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: 'Comentário excluído.',
+      dados: treinoAtualizado?.comentarios,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      sucesso: false,
+      mensagem: error.message || 'Erro ao excluir comentário.',
+    });
+  }
+};
+
 // @desc    Excluir um treino
 // @route   DELETE /api/workouts/:id
 // @access  Privado (apenas o autor ou admin)
@@ -297,6 +409,7 @@ export const deleteWorkout = async (req: AuthenticatedRequest, res: Response): P
     });
 
     await WorkoutPost.findByIdAndDelete(id);
+    await removePhotos(treino.fotos);
 
     res.status(200).json({
       sucesso: true,

@@ -11,6 +11,9 @@ class UserModel {
   final String? token;
   final Map<String, dynamic>? recordesPessoais;
   final Map<String, dynamic>? estatisticas;
+  final int? seguidores;
+  final int? seguindo;
+  final List<String> corridasSalvas;
 
   UserModel({
     required this.id,
@@ -25,7 +28,17 @@ class UserModel {
     this.token,
     this.recordesPessoais,
     this.estatisticas,
+    this.seguidores,
+    this.seguindo,
+    this.corridasSalvas = const [],
   });
+
+  /// Conta itens de uma lista do backend ou aceita o total já salvo localmente.
+  static int? _count(dynamic value) {
+    if (value is List) return value.length;
+    if (value is num) return value.toInt();
+    return null;
+  }
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? token}) {
     return UserModel(
@@ -41,6 +54,12 @@ class UserModel {
       token: token ?? json['token'],
       recordesPessoais: json['recordesPessoais'] as Map<String, dynamic>?,
       estatisticas: json['estatisticas'] as Map<String, dynamic>?,
+      seguidores: _count(json['seguidores']),
+      seguindo: _count(json['seguindo']),
+      // A rota /me devolve as provas populadas; as demais, apenas os ids.
+      corridasSalvas: (json['corridasSalvas'] as List? ?? const [])
+          .map((r) => r is Map ? r['_id'].toString() : r.toString())
+          .toList(),
     );
   }
 
@@ -58,6 +77,9 @@ class UserModel {
       'token': token,
       'recordesPessoais': recordesPessoais,
       'estatisticas': estatisticas,
+      'seguidores': seguidores,
+      'seguindo': seguindo,
+      'corridasSalvas': corridasSalvas,
     };
   }
 }

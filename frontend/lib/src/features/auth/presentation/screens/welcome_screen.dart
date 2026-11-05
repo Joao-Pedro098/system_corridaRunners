@@ -1,138 +1,176 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/wavy_topography_header.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/brand/rr_brand.dart';
+import '../../../../core/motion/rr_motion.dart';
+import '../../../../core/theme/rr_theme.dart';
+import '../../../../core/widgets/rr_button.dart';
+import '../../../../core/widgets/rr_layout.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
 
+class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
+  // As raias seguem o ponteiro ou o dedo, com atraso, como quem pega o ritmo.
+  final _shift = ValueNotifier<Offset>(Offset.zero);
+  late final _ticker = createTicker(_tick);
+  Offset _target = Offset.zero;
+
+  void _tick(Duration _) {
+    final next = Offset.lerp(_shift.value, _target, .08)!;
+    _shift.value = next;
+    if ((next - _target).distance < .2) {
+      _shift.value = _target;
+      _ticker.stop();
+    }
+  }
+
+  void _follow(Offset position, Size size) {
+    if (RRMotion.reduced(context)) return;
+    _target = Offset((position.dx / size.width - .5) * -36, (position.dy / size.height - .5) * -36);
+    if (!_ticker.isActive) _ticker.start();
+  }
+
+  void _settle() {
+    _target = Offset.zero;
+    if (!RRMotion.reduced(context) && !_ticker.isActive) _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _shift.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            // Cabeçalho ondulado com textura topográfica azul (igual à referência)
-            WavyTopographyHeader(
-              height: size.height * 0.58,
+      backgroundColor: RRPalette.cal950,
+      body: LayoutBuilder(
+        builder: (context, box) {
+          final w = box.maxWidth, h = box.maxHeight;
+          // Proporções do quadro de 390 x 844 do Figma.
+          final heroSize = math.min(math.min(w * .287, h * .1327), 168.0);
+          final scale = (h / 844).clamp(.7, 1.6);
+          final hero = RRType.hero(heroSize, heroSize * .875).copyWith(color: RRPalette.cal50);
+          Widget heroLine(String text, int i) => RRMaskedLine(
+            delay: Duration(milliseconds: 180 + 110 * i),
+            child: Text(text, style: hero),
+          );
+          return MouseRegion(
+            onHover: (e) => _follow(e.localPosition, box.biggest),
+            onExit: (_) => _settle(),
+            child: Listener(
+              onPointerMove: (e) => _follow(e.localPosition, box.biggest),
+              onPointerUp: (_) => _settle(),
               child: Stack(
                 children: [
+                  Positioned.fill(
+                    child: RRLanes(
+                      color: RRPalette.tartan500,
+                      fromRight: -10,
+                      cy: h * .39,
+                      r0: 30 * scale,
+                      step: 32 * scale,
+                      count: w > 700 ? 12 : 6,
+                      strokeWidth: 12 * scale,
+                      duration: const Duration(milliseconds: 1400),
+                      shift: _shift,
+                    ),
+                  ),
                   Positioned(
-                    top: size.height * 0.16,
-                    left: 28,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: h * .66,
+                    child: const IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x00111311), RRPalette.cal950],
+                            stops: [0, .45],
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.35),
-                              width: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const RRReveal(
+                            child: RRLockup(height: 32, symbolColor: RRPalette.tartan500, wordColor: RRPalette.cal50),
+                          ),
+                          const Spacer(),
+                          // O texto completo fica disponível como uma frase só
+                          // para leitores de tela.
+                          Semantics(
+                            label: 'Corra a sua rota.',
+                            excludeSemantics: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [heroLine('CORRA', 0), heroLine('A SUA', 1), heroLine('ROTA.', 2)],
                             ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.directions_run_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'RunnersRun',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
+                          const SizedBox(height: 16),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                RRReveal(
+                                  index: 6,
+                                  child: Text(
+                                    'Treinos, provas e gente da sua região no mesmo ritmo.',
+                                    style: RRType.textL.copyWith(color: RRPalette.cal300),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 12),
+                                RRReveal(
+                                  index: 6,
+                                  child: RRButton(
+                                    'Criar minha conta',
+                                    kind: RRButtonKind.accent,
+                                    size: RRButtonSize.l,
+                                    expand: true,
+                                    onPressed: () => rrPush(context, const RegisterScreen()),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                RRReveal(
+                                  index: 6,
+                                  child: RRButton(
+                                    'Já tenho conta',
+                                    kind: RRButtonKind.onDark,
+                                    size: RRButtonSize.l,
+                                    expand: true,
+                                    onPressed: () => rrPush(context, const LoginScreen()),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'Viva o seu\nmelhor ritmo.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 34,
-                            fontWeight: FontWeight.w800,
-                            height: 1.15,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Seção inferior com o Welcome e botão Continuar
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28.0,
-                  vertical: 16.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Bem-vindo',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Conecte-se com atletas da região, registre seus treinos diários, acompanhe sua evolução de ritmo e explore as melhores provas e eventos esportivos.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Botão Continuar no canto inferior direito exatamente como no layout da imagem
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ContinueArrowButton(
-                        text: 'Continuar',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

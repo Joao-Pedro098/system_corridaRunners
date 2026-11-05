@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'src/core/constants/app_colors.dart';
+
+import 'src/core/theme/rr_theme.dart';
+import 'src/core/theme/theme_provider.dart';
 import 'src/features/auth/presentation/providers/auth_provider.dart';
 import 'src/features/auth/presentation/screens/welcome_screen.dart';
 import 'src/features/home/presentation/screens/main_navigation_screen.dart';
+import 'src/features/workouts/presentation/workouts_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,26 +21,26 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => WorkoutsProvider()),
       ],
-      child: MaterialApp(
-        title: 'RunnersRun',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          scaffoldBackgroundColor: Colors.white,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primaryBlue,
-            primary: AppColors.primaryBlue,
-            surface: AppColors.surface,
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.textPrimary,
-            elevation: 0,
-          ),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          title: 'RunnersRun',
+          debugShowCheckedModeBanner: false,
+          theme: buildRRTheme(Brightness.light),
+          darkTheme: buildRRTheme(Brightness.dark),
+          themeMode: context.watch<ThemeProvider>().mode,
+          locale: const Locale('pt', 'BR'),
+          supportedLocales: const [Locale('pt', 'BR')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const AuthWrapper(),
         ),
-        home: const AuthWrapper(),
       ),
     );
   }
@@ -50,19 +54,15 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    if (authProvider.isLoading && authProvider.user == null) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-          ),
-        ),
-      );
-    }
-
     if (authProvider.isAuthenticated) {
       return const MainNavigationScreen();
+    }
+
+    if (authProvider.isLoading) {
+      return Scaffold(
+        backgroundColor: context.rr.canvas,
+        body: const Center(child: CircularProgressIndicator(strokeWidth: 3)),
+      );
     }
 
     return const WelcomeScreen();

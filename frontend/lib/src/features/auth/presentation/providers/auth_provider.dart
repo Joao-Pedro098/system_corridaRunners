@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/network/api_client.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
 
@@ -15,6 +17,8 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   AuthProvider() {
+    // Token expirado ou inválido encerra a sessão.
+    ApiClient.onUnauthorized = logout;
     checkAuthStatus();
   }
 
@@ -29,20 +33,38 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+    if (_user != null) await refreshUser();
   }
 
-  Future<bool> login(String email, String senha) async {
+  /// Atualiza totais, seguidores e provas salvas a partir do servidor.
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+    try {
+      _user = await _authService.me();
+      notifyListeners();
+    } on ApiException {
+      // Mantém os dados locais: o app segue utilizável sem conexão momentânea.
+    }
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> body) async {
+    _user = await _authService.updateProfile(body);
+    notifyListeners();
+  }
+
+  Future<bool> login(String email, String senha, {bool remember = true}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _user = await _authService.login(email, senha);
+      _user = await _authService.login(email, senha, remember: remember);
       _isLoading = false;
       notifyListeners();
+      await refreshUser();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
       return false;
@@ -74,9 +96,10 @@ class AuthProvider extends ChangeNotifier {
       );
       _isLoading = false;
       notifyListeners();
+      await refreshUser();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
       return false;

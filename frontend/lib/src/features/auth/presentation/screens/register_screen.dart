@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/wavy_topography_header.dart';
-import '../../../../core/widgets/custom_text_field.dart';
-import '../../../../core/widgets/custom_button.dart';
+
+import '../../../../core/brand/rr_brand.dart';
+import '../../../../core/motion/rr_motion.dart';
+import '../../../../core/theme/rr_theme.dart';
+import '../../../../core/widgets/rr_button.dart';
+import '../../../../core/widgets/rr_feedback.dart';
+import '../../../../core/widgets/rr_field.dart';
 import '../providers/auth_provider.dart';
-import '../../../home/presentation/screens/main_navigation_screen.dart';
+import '../widgets/auth_frame.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,6 +20,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _shakeKey = GlobalKey<RRShakeState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -37,17 +42,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('As senhas não coincidem.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+    if (!_formKey.currentState!.validate()) {
+      _shakeKey.currentState?.shake();
       return;
     }
 
@@ -65,298 +61,165 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-        (route) => false,
-      );
+      // O AuthWrapper, na raiz, passa a mostrar a área logada.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
-      final msg = authProvider.errorMessage ?? 'Não foi possível criar a conta.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _shakeKey.currentState?.shake();
+      showRRToast(context, authProvider.errorMessage ?? 'Não foi possível criar a conta.', error: true);
     }
+  }
+
+  Widget _typeOption(String value, String label, String icon) {
+    final c = context.rr;
+    final selected = _tipoSelecionado == value;
+    return Expanded(
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: RRPressable(
+          child: AnimatedContainer(
+            duration: RRMotion.of(context, RRMotion.base),
+            curve: RRMotion.enter,
+            decoration: BoxDecoration(
+              color: selected ? c.action : c.action.withValues(alpha: 0),
+              borderRadius: BorderRadius.circular(RRRadius.md),
+              border: Border.all(color: selected ? c.action : c.borderStrong),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              borderRadius: BorderRadius.circular(RRRadius.md),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => setState(() => _tipoSelecionado = value),
+                child: SizedBox(
+                  height: 50,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      RRIcon(icon, size: 18, color: selected ? c.onAction : c.textSecondary),
+                      const SizedBox(width: 8),
+                      Text(label, style: RRType.labelM.copyWith(color: selected ? c.onAction : c.textPrimary)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final c = context.rr;
     final authProvider = context.watch<AuthProvider>();
+    const gap = SizedBox(height: 16);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Top Wavy Header
-            WavyTopographyHeader(
-              height: size.height * 0.24,
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 48,
-                    left: 16,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Form Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 8.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return AuthFrame(
+      title: 'Criar conta',
+      subtitle: 'Junte-se à comunidade de corrida da sua região.',
+      child: Form(
+        key: _formKey,
+        child: RRShake(
+          key: _shakeKey,
+          child: AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    const Text(
-                      'Criar Conta',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Junte-se à nossa comunidade de corrida.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Seletor de Tipo de Perfil (Atleta / Organizador)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _tipoSelecionado = 'atleta'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _tipoSelecionado == 'atleta'
-                                    ? AppColors.primaryBlue.withValues(alpha: 0.12)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _tipoSelecionado == 'atleta'
-                                      ? AppColors.primaryBlue
-                                      : Colors.transparent,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.directions_run_rounded,
-                                    size: 18,
-                                    color: _tipoSelecionado == 'atleta'
-                                        ? AppColors.primaryBlue
-                                        : AppColors.textSecondary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Sou Corredor',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: _tipoSelecionado == 'atleta'
-                                          ? AppColors.primaryBlue
-                                          : AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _tipoSelecionado = 'organizador'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _tipoSelecionado == 'organizador'
-                                    ? AppColors.primaryBlue.withValues(alpha: 0.12)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _tipoSelecionado == 'organizador'
-                                      ? AppColors.primaryBlue
-                                      : Colors.transparent,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.military_tech_rounded,
-                                    size: 18,
-                                    color: _tipoSelecionado == 'organizador'
-                                        ? AppColors.primaryBlue
-                                        : AppColors.textSecondary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Organizador',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: _tipoSelecionado == 'organizador'
-                                          ? AppColors.primaryBlue
-                                          : AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Nome Completo
-                    CustomTextField(
-                      controller: _nameController,
-                      label: 'Nome Completo',
-                      hintText: 'Como quer ser chamado',
-                      prefixIcon: Icons.person_outline_rounded,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Informe seu nome';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    // E-mail
-                    CustomTextField(
-                      controller: _emailController,
-                      label: 'E-mail',
-                      hintText: 'seuemail@exemplo.com',
-                      prefixIcon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Informe seu e-mail';
-                        }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'E-mail inválido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Telefone / WhatsApp
-                    CustomTextField(
-                      controller: _phoneController,
-                      label: 'WhatsApp / Telefone',
-                      hintText: '(94) 99999-9999',
-                      prefixIcon: Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Cidade
-                    CustomTextField(
-                      controller: _cityController,
-                      label: 'Cidade',
-                      hintText: 'Ex: Parauapebas',
-                      prefixIcon: Icons.location_on_outlined,
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Senha
-                    CustomTextField(
-                      controller: _passwordController,
-                      label: 'Senha',
-                      hintText: 'Mínimo de 6 caracteres',
-                      prefixIcon: Icons.lock_outline,
-                      isPassword: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Informe uma senha';
-                        }
-                        if (value.length < 6) {
-                          return 'Mínimo de 6 dígitos';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Confirmar Senha
-                    CustomTextField(
-                      controller: _confirmPasswordController,
-                      label: 'Confirmar Senha',
-                      hintText: 'Repita sua senha',
-                      prefixIcon: Icons.lock_outline,
-                      isPassword: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Confirme sua senha';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 26),
-
-                    // Botão Criar Conta
-                    CustomButton(
-                      text: 'Criar Conta',
-                      isLoading: authProvider.isLoading,
-                      onPressed: _handleRegister,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Rodapé para voltar ao Login
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Já tem uma conta? ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Text(
-                            'Entrar',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryBlue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 36),
+                    _typeOption('atleta', 'Sou corredor', 'rota'),
+                    const SizedBox(width: 12),
+                    _typeOption('organizador', 'Organizador', 'largada'),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
+                RRField(
+                  controller: _nameController,
+                  label: 'Nome completo',
+                  hint: 'Como quer ser chamado',
+                  icon: 'perfil',
+                  autofillHints: const [AutofillHints.name],
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Informe seu nome' : null,
+                ),
+                gap,
+                RRField(
+                  controller: _emailController,
+                  label: 'E-mail',
+                  hint: 'seuemail@exemplo.com',
+                  icon: 'email',
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return 'Informe seu e-mail';
+                    if (!value.contains('@') || !value.contains('.')) return 'E-mail inválido';
+                    return null;
+                  },
+                ),
+                gap,
+                RRField(
+                  controller: _phoneController,
+                  label: 'WhatsApp / Telefone',
+                  hint: '(94) 99999-9999',
+                  icon: 'telefone',
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                ),
+                gap,
+                RRField(controller: _cityController, label: 'Cidade', hint: 'Ex: Parauapebas', icon: 'local'),
+                gap,
+                RRField(
+                  controller: _passwordController,
+                  label: 'Senha',
+                  hint: 'Mínimo de 6 caracteres',
+                  icon: 'senha',
+                  isPassword: true,
+                  autofillHints: const [AutofillHints.newPassword],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Informe uma senha';
+                    if (value.length < 6) return 'Mínimo de 6 caracteres';
+                    return null;
+                  },
+                ),
+                gap,
+                RRField(
+                  controller: _confirmPasswordController,
+                  label: 'Confirmar senha',
+                  hint: 'Repita sua senha',
+                  icon: 'senha',
+                  isPassword: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Confirme sua senha';
+                    if (value != _passwordController.text) return 'As senhas não coincidem';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                RRButton(
+                  'Criar conta',
+                  kind: RRButtonKind.accent,
+                  size: RRButtonSize.l,
+                  expand: true,
+                  loading: authProvider.isLoading,
+                  onPressed: _handleRegister,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Já tem uma conta?', style: RRType.textM.copyWith(color: c.textSecondary)),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        RRPageRoute(builder: (_) => const LoginScreen(), instant: RRMotion.reduced(context)),
+                      ),
+                      child: Text('Entrar', style: RRType.labelM.copyWith(color: c.textLink)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
