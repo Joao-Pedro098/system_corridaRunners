@@ -29,8 +29,14 @@ class ApiClient {
   static Future<Map<String, dynamic>> get(String url, {Map<String, String>? query}) =>
       _send(() => client.get(Uri.parse(url).replace(queryParameters: query), headers: _headers));
 
-  static Future<Map<String, dynamic>> post(String url, [Map<String, dynamic>? body]) =>
-      _send(() => client.post(Uri.parse(url), headers: _headers, body: jsonEncode(body ?? const {})));
+  static Future<Map<String, dynamic>> post(
+    String url, [
+    Map<String, dynamic>? body,
+    Duration timeout = const Duration(seconds: 15),
+  ]) => _send(
+    () => client.post(Uri.parse(url), headers: _headers, body: jsonEncode(body ?? const {})),
+    timeout: timeout,
+  );
 
   static Future<Map<String, dynamic>> put(String url, Map<String, dynamic> body) =>
       _send(() => client.put(Uri.parse(url), headers: _headers, body: jsonEncode(body)));

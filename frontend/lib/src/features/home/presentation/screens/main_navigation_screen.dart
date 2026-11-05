@@ -11,6 +11,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../news/presentation/news_screen.dart';
 import '../../../profile/presentation/profile_screen.dart';
 import '../../../races/presentation/events_screen.dart';
+import '../../../routes/presentation/my_routes_screen.dart';
 import '../../../workouts/presentation/feed_screen.dart';
 import '../../../workouts/presentation/new_workout_screen.dart';
 import '../../../workouts/presentation/workouts_provider.dart';
@@ -21,8 +22,12 @@ const _destinations = [
   ('Comunidade', 'comunidade'),
   ('Eventos', 'calendario'),
   ('Notícias', 'noticias'),
+  ('Rotas', 'rota'),
   ('Perfil', 'perfil'),
 ];
+
+/// Posição da aba Perfil em [_destinations].
+const _profileTab = 4;
 
 /// Área logada: barra inferior no mobile e barra lateral na web.
 class MainNavigationScreen extends StatefulWidget {
@@ -68,7 +73,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     _desktopNavigator.currentState?.popUntil((route) => route.isFirst);
   }
 
-  Widget _tabs() => _Tabs(key: _tabsKey, tab: _tab, onOpenNews: () => _select(2), onOpenProfile: () => _select(3));
+  Widget _tabs() => _Tabs(key: _tabsKey, tab: _tab, onOpenNews: () => _select(2), onOpenProfile: () => _select(_profileTab));
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +117,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _TopBar(onAvatar: () => _select(3)),
+              _TopBar(onAvatar: () => _select(_profileTab)),
               Expanded(
                 // Ao rolar para baixo o botão sai da frente do conteúdo.
                 child: NotificationListener<UserScrollNotification>(
@@ -197,6 +202,7 @@ class _TabsState extends State<_Tabs> with SingleTickerProviderStateMixin {
             FeedScreen(onOpenNews: widget.onOpenNews, onOpenProfile: widget.onOpenProfile),
             const EventsScreen(),
             const NewsScreen(),
+            const MyRoutesScreen(),
             const ProfileScreen(),
           ],
         ),

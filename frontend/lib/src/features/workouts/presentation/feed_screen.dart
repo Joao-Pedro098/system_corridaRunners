@@ -243,7 +243,7 @@ class _TipsState extends State<_Tips> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RRSectionHead('Dicas', action: 'Ver todas', onAction: widget.onOpenNews),
+        RRSectionHead('Notícias', action: 'Ver todas', onAction: widget.onOpenNews),
         const SizedBox(height: 16),
         NewsCard(news: _news!),
       ],

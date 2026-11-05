@@ -34,6 +34,26 @@ const newsSchema = new Schema<INews>(
       type: Boolean,
       default: false,
     },
+    // Só em matérias vindas de fontes externas; `conteudo` guarda apenas o resumo do feed.
+    linkOriginal: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
+    fonteId: {
+      type: String,
+    },
+    fonteNome: {
+      type: String,
+    },
+    publicadoEm: {
+      type: Date,
+    },
+    oculta: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

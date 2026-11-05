@@ -50,6 +50,33 @@ void main() {
       expect(_opacity(tester, find.text('abaixo')), 1);
     });
 
+    testWidgets('um salto de rolagem revela o que entrou na tela, sem esperar outra rolagem', (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _app(
+          ListView(
+            controller: controller,
+            children: const [
+              Column(
+                children: [
+                  SizedBox(height: 700),
+                  RRReveal(child: Text('abaixo')),
+                  SizedBox(height: 2000),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(_opacity(tester, find.text('abaixo')), 0);
+
+      controller.jumpTo(400);
+      await tester.pumpAndSettle();
+      expect(_opacity(tester, find.text('abaixo')), 1);
+    });
+
     testWidgets('em aba oculta, só anima quando a aba é mostrada', (tester) async {
       Widget stack(int index) => _app(
         IndexedStack(

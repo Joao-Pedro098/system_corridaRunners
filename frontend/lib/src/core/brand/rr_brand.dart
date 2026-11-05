@@ -57,6 +57,10 @@ const _icons = <String, String>{
   'noticias': '<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M8 9h5"/><path d="M8 13h5"/><path d="M8 17h5"/>',
   'perfil': '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
   'mais': '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  'desfazer': '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  'circuito': '<path d="M4 12a8 8 0 0 1 13.700-5.600L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.700 5.600L4 15"/><path d="M4 20v-5h5"/>',
+  'baixar': '<path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M4 20h16"/>',
+  'alvo': '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/>',
   'curtir': '<path d="M12 20.5s-8.5-5-8.5-11A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 2.9c0 6-8.5 11-8.5 11z"/>',
   'comentar': '<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1 1 21 12z"/>',
   'local':

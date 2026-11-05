@@ -44,6 +44,10 @@ dependencies:
     sdk: flutter
   image_picker: ^1.2.4
   http_parser: ^4.1.2
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.2
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:

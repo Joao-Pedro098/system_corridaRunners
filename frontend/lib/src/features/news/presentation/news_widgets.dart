@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/brand/rr_brand.dart';
 import '../../../core/theme/rr_theme.dart';
+import '../../../core/utils/format.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../data/news_model.dart';
 import 'news_detail_screen.dart';
@@ -32,20 +33,37 @@ class NewsCover extends StatelessWidget {
     );
     final url = news.imagemUrl;
     if (url == null || url.isEmpty) return art;
-    return Image.network(url, width: width, height: height, fit: BoxFit.cover, errorBuilder: (_, _, _) => art);
+    // A capa externa é exibida a partir do site de origem. Esses sites não liberam a leitura da imagem
+    // pelo Flutter web (CORS), por isso ela vai direto como <img> comum.
+    return Image.network(
+      url,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      webHtmlElementStrategy: news.isExternal ? WebHtmlElementStrategy.prefer : WebHtmlElementStrategy.never,
+      errorBuilder: (_, _, _) => art,
+    );
   }
 }
 
 class NewsCard extends StatelessWidget {
   final NewsModel news;
-  const NewsCard({super.key, required this.news});
+
+  /// Chamado quando o admin oculta a matéria na tela de detalhe.
+  final VoidCallback? onHidden;
+  const NewsCard({super.key, required this.news, this.onHidden});
+
+  Future<void> _open(BuildContext context) async {
+    final hidden = await rrPush<bool>(context, NewsDetailScreen(news: news));
+    if (hidden == true) onHidden?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.rr;
     return RRCard(
       padding: const EdgeInsets.all(12),
-      onTap: () => rrPush(context, NewsDetailScreen(news: news)),
+      onTap: () => _open(context),
       child: Row(
         children: [
           ClipRRect(borderRadius: BorderRadius.circular(RRRadius.md), child: NewsCover(news, width: 80, height: 80)),
@@ -63,7 +81,14 @@ class NewsCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text('${news.readingMinutes} min de leitura', style: RRType.textS.copyWith(color: c.textSecondary)),
+                Text(
+                  news.isExternal
+                      ? '${news.fonteNome ?? news.autor} • ${Fmt.relative(news.date)}'
+                      : '${news.readingMinutes} min de leitura',
+                  style: RRType.textS.copyWith(color: c.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),

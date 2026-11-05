@@ -27,6 +27,7 @@ class RRMotion {
 mixin RevealOnShow<T extends StatefulWidget> on State<T> {
   bool _revealed = false;
   bool _tickerOn = false;
+  bool _checkScheduled = false;
   ScrollPosition? _position;
   BuildContext? _viewport;
 
@@ -41,12 +42,23 @@ mixin RevealOnShow<T extends StatefulWidget> on State<T> {
     if (_revealed) return;
     final scrollable = Scrollable.maybeOf(context, axis: Axis.vertical);
     if (scrollable?.position != _position) {
-      _position?.removeListener(_check);
+      _position?.removeListener(_onScroll);
       _position = scrollable?.position;
-      _position?.addListener(_check);
+      _position?.addListener(_onScroll);
     }
     _viewport = scrollable?.context;
     WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  /// A posição só muda na tela no próximo quadro: medir antes disso deixaria
+  /// invisível o que uma rolagem rápida acabou de trazer.
+  void _onScroll() {
+    if (_checkScheduled) return;
+    _checkScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkScheduled = false;
+      _check();
+    });
   }
 
   void _check() {
@@ -60,13 +72,13 @@ mixin RevealOnShow<T extends StatefulWidget> on State<T> {
       if (top > limit - 16) return;
     }
     _revealed = true;
-    _position?.removeListener(_check);
+    _position?.removeListener(_onScroll);
     onShown();
   }
 
   @override
   void dispose() {
-    _position?.removeListener(_check);
+    _position?.removeListener(_onScroll);
     super.dispose();
   }
 }

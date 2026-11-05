@@ -10,6 +10,7 @@ import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/news_model.dart';
 import 'news_form_screen.dart';
+import 'news_sources_screen.dart';
 import 'news_widgets.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -21,7 +22,11 @@ class NewsScreen extends StatefulWidget {
 
 class _NewsScreenState extends State<NewsScreen> {
   List<NewsModel> _items = [];
-  bool _loading = true;
+  bool _loading = true, _loadingMore = false, _hasMore = false;
+  int _page = 1;
+
+  /// Identifica o pedido atual: a resposta de um filtro antigo é descartada.
+  int _request = 0;
   String? _error, _category;
 
   @override
@@ -31,17 +36,45 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Future<void> _load() async {
+    final request = ++_request;
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _error = null;
     });
     try {
-      final items = await NewsService.list(categoria: _category);
-      if (mounted) setState(() => _items = items);
+      final result = await NewsService.page(categoria: _category);
+      if (!mounted || request != _request) return;
+      setState(() {
+        _items = result.items;
+        _hasMore = result.hasMore;
+        _page = 1;
+      });
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted && request == _request) setState(() => _error = e.message);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && request == _request) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore) return;
+    final request = _request;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await NewsService.page(categoria: _category, page: _page + 1);
+      if (!mounted || request != _request) return;
+      // Uma matéria nova desloca a lista: o que já está na tela não entra duas vezes.
+      final known = _items.map((n) => n.id).toSet();
+      setState(() {
+        _items = [..._items, ...result.items.where((n) => !known.contains(n.id))];
+        _hasMore = result.hasMore;
+        _page += 1;
+      });
+    } on ApiException catch (e) {
+      if (mounted && request == _request) showRRToast(context, e.message, error: true);
+    } finally {
+      if (mounted && request == _request) setState(() => _loadingMore = false);
     }
   }
 
@@ -55,6 +88,11 @@ class _NewsScreenState extends State<NewsScreen> {
     if (created == true) _load();
   }
 
+  Future<void> _openSources() async {
+    final changed = await rrPush<bool>(context, const NewsSourcesScreen());
+    if (changed == true) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.rr;
@@ -64,7 +102,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
     final Widget body;
     if (_loading && _items.isEmpty) {
-      body = const RRSkeleton(count: 3, height: 104);
+      body = const RRSkeleton(count: 3, height: 124);
     } else if (_error != null) {
       body = RRErrorState(message: _error!, onRetry: _load);
     } else if (_items.isEmpty) {
@@ -77,7 +115,7 @@ class _NewsScreenState extends State<NewsScreen> {
         builder: (context, box) => RRGrid(
           columns: box.maxWidth >= 1000 ? 3 : (box.maxWidth >= 640 ? 2 : 1),
           gap: 16,
-          children: [for (final n in _items) NewsCard(news: n, key: ValueKey(n.id))],
+          children: [for (final n in _items) NewsCard(news: n, key: ValueKey(n.id), onHidden: _load)],
         ),
       );
     }
@@ -87,16 +125,30 @@ class _NewsScreenState extends State<NewsScreen> {
       child: ListView(
         padding: EdgeInsets.all(desktop ? 32 : 16),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          // No celular as ações ficam abaixo do título, para ele não quebrar no meio da palavra.
+          Flex(
+            direction: desktop ? Axis.horizontal : Axis.vertical,
+            crossAxisAlignment: desktop ? CrossAxisAlignment.end : CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  desktop ? 'NOTÍCIAS E DICAS' : 'NOTÍCIAS\nE DICAS',
-                  style: RRType.displayM.copyWith(color: c.textPrimary),
+              if (desktop)
+                Expanded(
+                  child: Text('NOTÍCIAS E DICAS', style: RRType.displayM.copyWith(color: c.textPrimary)),
+                )
+              else
+                Text('NOTÍCIAS\nE DICAS', style: RRType.displayM.copyWith(color: c.textPrimary)),
+              if (canCreate) ...[
+                if (!desktop) const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RRButton('Nova notícia', icon: 'mais', onPressed: _create),
+                    if (type == 'admin') ...[
+                      const SizedBox(width: 8),
+                      RRButton('Fontes', icon: 'link', kind: RRButtonKind.secondary, onPressed: _openSources),
+                    ],
+                  ],
                 ),
-              ),
-              if (canCreate) RRButton('Nova notícia', icon: 'mais', onPressed: _create),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -114,6 +166,17 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           const SizedBox(height: 16),
           body,
+          if (_hasMore && _error == null && _items.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: RRButton(
+                'Carregar mais',
+                kind: RRButtonKind.secondary,
+                loading: _loadingMore,
+                onPressed: _loadMore,
+              ),
+            ),
+          ],
         ],
       ),
     );

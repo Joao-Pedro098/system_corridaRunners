@@ -48,6 +48,7 @@ class _RRFieldState extends State<RRField> {
   Widget build(BuildContext context) {
     final c = context.rr;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(widget.label.toUpperCase(), style: RRType.monoS.copyWith(color: c.textSecondary)),

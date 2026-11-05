@@ -2,12 +2,15 @@
 // O banco é apagado a cada execução, por isso o nome precisa terminar em _test.
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { Server } from 'node:http';
+import { createServer, Server } from 'node:http';
 import { AddressInfo } from 'node:net';
 import mongoose from 'mongoose';
 import app from '../src/app';
 import { removePhotos } from '../src/middlewares/uploadMiddleware';
+import { News } from '../src/models/News';
+import { NewsSource } from '../src/models/NewsSource';
 import { User } from '../src/models/User';
+import { backfillNewsSources, Fetcher, syncNewsSources } from '../src/services/newsSyncService';
 
 const MONGO_URI = process.env.TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/runnersrun_test';
 process.env.JWT_SECRET = 'segredo-de-teste';
@@ -484,6 +487,518 @@ describe('notícias', () => {
     assert.equal(created.status, 201);
     assert.equal((await api('GET', `/news/${created.json.dados._id}`)).json.dados.titulo, 'Título');
     assert.equal((await api('GET', '/news?categoria=Aviso')).json.dados.length >= 1, true);
+  });
+});
+
+describe('notícias de fontes externas', () => {
+  const NOW = new Date('2026-11-05T12:00:00Z');
+  const rss = (items: string) => `<rss version="2.0"><channel>${items}</channel></rss>`;
+  const item = (slug: string, title: string, date: string, extra = '') =>
+    `<item><title>${title}</title><link>https://webrun.com.br/${slug}/</link><pubDate>${date}</pubDate><description>Resumo de ${slug}</description>${extra}</item>`;
+
+  // Só o Webrun responde; as outras fontes ficam com feed vazio.
+  const fakeFetcher = (feed: string, requests: string[] = []): Fetcher => async (url) => {
+    requests.push(url);
+    if (url === 'https://webrun.com.br/feed/') return feed;
+    if (url.endsWith('/feed/')) return rss('');
+    return '<meta property="og:image" content="https://webrun.com.br/capa.jpg">';
+  };
+  const sync = (feed: string, requests?: string[]) =>
+    syncNewsSources({ force: true, fetcher: fakeFetcher(feed, requests), pageDelayMs: 0, now: NOW });
+
+  const admin = async () => {
+    const user = await newUser();
+    await User.updateOne({ _id: user.id }, { tipo: 'admin' });
+    return user;
+  };
+  const reset = () => Promise.all([News.deleteMany({ fonteId: { $exists: true } }), NewsSource.deleteMany({})]);
+  const titles = async () => (await api('GET', '/news')).json.dados.map((n: { titulo: string }) => n.titulo);
+
+  it('importa resumo, crédito, link e capa, sem repetir a matéria', async () => {
+    await reset();
+    const requests: string[] = [];
+    const feed = rss(
+      item('primeira', 'Primeira matéria', 'Wed, 04 Nov 2026 10:00:00 +0000', '<content:encoded>TEXTO INTEIRO</content:encoded>')
+    );
+    const [webrun] = await sync(feed, requests);
+    assert.equal(webrun.novas, 1);
+
+    const news = (await api('GET', '/news')).json.dados.find((n: { titulo: string }) => n.titulo === 'Primeira matéria');
+    assert.equal(news.conteudo, 'Resumo de primeira');
+    assert.equal(news.fonteNome, 'Webrun');
+    assert.equal(news.autor, 'Webrun');
+    assert.equal(news.linkOriginal, 'https://webrun.com.br/primeira/');
+    assert.equal(news.imagemUrl, 'https://webrun.com.br/capa.jpg');
+    assert.equal(requests.includes('https://webrun.com.br/primeira/'), true);
+
+    requests.length = 0;
+    assert.equal((await sync(feed, requests))[0].novas, 0);
+    assert.equal(requests.includes('https://webrun.com.br/primeira/'), false, 'não abre de novo matéria já conhecida');
+    assert.equal(await News.countDocuments({ fonteId: 'webrun' }), 1);
+  });
+
+  it('fonte que recusa as imagens fica sem capa, inclusive nas matérias antigas', async () => {
+    await reset();
+    await News.create({
+      titulo: 'Antiga',
+      conteudo: 'R',
+      linkOriginal: 'https://contrarelogio.com.br/antiga/',
+      fonteId: 'contra-relogio',
+      imagemUrl: 'https://contrarelogio.com.br/a.jpg',
+    });
+    const requests: string[] = [];
+    await syncNewsSources({
+      force: true,
+      now: NOW,
+      pageDelayMs: 0,
+      fetcher: async (url) => {
+        requests.push(url);
+        if (url !== 'https://contrarelogio.com.br/feed/') return rss('');
+        return rss(
+          `<item><title>Nova</title><link>https://contrarelogio.com.br/nova/</link><pubDate>Wed, 04 Nov 2026 10:00:00 +0000</pubDate><description>R</description></item>`
+        );
+      },
+    });
+    assert.equal((await News.findOne({ titulo: 'Nova' }))?.imagemUrl, undefined);
+    assert.equal((await News.findOne({ titulo: 'Antiga' }))?.imagemUrl, undefined);
+    assert.equal(requests.includes('https://contrarelogio.com.br/nova/'), false, 'não abre a página atrás da capa');
+  });
+
+  it('ignora matéria antiga e link fora do domínio da fonte', async () => {
+    await reset();
+    const [webrun] = await sync(
+      rss(
+        item('velha', 'Velha', 'Wed, 23 Oct 2019 13:33:21 +0000') +
+          '<item><title>Fora</title><link>https://outro.com/a/</link><description>R</description></item>'
+      )
+    );
+    assert.equal(webrun.novas, 0);
+  });
+
+  it('a falha de uma fonte fica registrada e não apaga o que já existe', async () => {
+    await reset();
+    await sync(rss(item('a', 'Matéria A', 'Wed, 04 Nov 2026 10:00:00 +0000')));
+    const [webrun] = await syncNewsSources({
+      force: true,
+      now: NOW,
+      fetcher: async () => {
+        throw new Error('HTTP 503');
+      },
+    });
+    assert.equal(webrun.erro, 'HTTP 503');
+    assert.equal((await NewsSource.findOne({ fonteId: 'webrun' }))?.ultimoErro, 'HTTP 503');
+    assert.equal((await titles()).includes('Matéria A'), true);
+  });
+
+  it('não lê de novo uma fonte recém-lida, a menos que o admin peça', async () => {
+    await reset();
+    await sync(rss(''));
+    const requests: string[] = [];
+    const results = await syncNewsSources({ fetcher: fakeFetcher(rss(''), requests), now: NOW });
+    assert.deepEqual(requests, []);
+    assert.equal(results[0].pulada, true);
+  });
+
+  it('ordena próprias e externas pela data', async () => {
+    await reset();
+    await sync(
+      rss(item('futura', 'Mais nova', 'Thu, 05 Nov 2026 11:00:00 +0000') + item('antiga', 'Mais antiga', 'Mon, 02 Nov 2026 10:00:00 +0000'))
+    );
+    const list = await titles();
+    assert.ok(list.indexOf('Mais nova') < list.indexOf('Mais antiga'));
+  });
+
+  it('só o admin acessa as fontes e oculta matérias', async () => {
+    const organizer = await newUser('organizador');
+    for (const [method, path] of [
+      ['GET', '/news/sources'],
+      ['GET', '/news/hidden'],
+      ['POST', '/news/sources/sync'],
+      ['PUT', '/news/sources/webrun'],
+      ['PUT', `/news/${new mongoose.Types.ObjectId()}/visibility`],
+    ] as const) {
+      assert.equal((await api(method, path)).status, 401, path);
+      assert.equal((await api(method, path, organizer.token)).status, 403, path);
+    }
+  });
+
+  it('matéria oculta some da lista e do link direto, e pode voltar', async () => {
+    await reset();
+    const { token } = await admin();
+    await sync(rss(item('a', 'Matéria oculta', 'Wed, 04 Nov 2026 10:00:00 +0000')));
+    const news = await News.findOne({ titulo: 'Matéria oculta' });
+    const path = `/news/${news?._id}`;
+
+    assert.equal((await api('PUT', `${path}/visibility`, token, { oculta: 'sim' })).status, 400);
+    assert.equal((await api('PUT', `${path}/visibility`, token, { oculta: true })).status, 200);
+    assert.equal((await titles()).includes('Matéria oculta'), false);
+    assert.equal((await api('GET', path)).status, 404);
+    assert.equal((await api('GET', '/news/hidden', token)).json.dados[0].titulo, 'Matéria oculta');
+
+    await sync(rss(item('a', 'Matéria oculta', 'Wed, 04 Nov 2026 10:00:00 +0000')));
+    assert.equal((await titles()).includes('Matéria oculta'), false, 'nova busca não traz de volta');
+
+    assert.equal((await api('PUT', `${path}/visibility`, token, { oculta: false })).status, 200);
+    assert.equal((await titles()).includes('Matéria oculta'), true);
+  });
+
+  it('fonte desligada some do app, deixa de ser lida e volta ao religar', async () => {
+    await reset();
+    const { token } = await admin();
+    const feed = rss(item('a', 'Matéria da fonte', 'Wed, 04 Nov 2026 10:00:00 +0000'));
+    await sync(feed);
+    const news = await News.findOne({ titulo: 'Matéria da fonte' });
+
+    assert.equal((await api('PUT', '/news/sources/inexistente', token, { ativa: false })).status, 404);
+    assert.equal((await api('PUT', '/news/sources/webrun', token, { ativa: 'nao' })).status, 400);
+    assert.equal((await api('PUT', '/news/sources/webrun', token, { ativa: false })).status, 200);
+    assert.equal((await titles()).includes('Matéria da fonte'), false);
+    assert.equal((await api('GET', `/news/${news?._id}`)).status, 404);
+
+    const requests: string[] = [];
+    await sync(feed, requests);
+    assert.equal(requests.includes('https://webrun.com.br/feed/'), false);
+
+    const sources = (await api('GET', '/news/sources', token)).json.dados;
+    assert.equal(sources.find((s: { id: string }) => s.id === 'webrun').ativa, false);
+    assert.equal(sources.length, 3);
+
+    assert.equal((await api('PUT', '/news/sources/webrun', token, { ativa: true })).status, 200);
+    assert.equal((await titles()).includes('Matéria da fonte'), true);
+  });
+
+  it('a lista é paginada, sem repetir nem pular notícia', async () => {
+    await News.deleteMany({});
+    await NewsSource.deleteMany({});
+    await News.insertMany(
+      Array.from({ length: 5 }, (_, i) => ({
+        titulo: `Matéria ${i}`,
+        conteudo: 'R',
+        linkOriginal: `https://webrun.com.br/m${i}/`,
+        fonteId: 'webrun',
+        publicadoEm: new Date(Date.UTC(2026, 10, 5 - i)),
+      }))
+    );
+    const first = (await api('GET', '/news?limit=2&page=1')).json;
+    const second = (await api('GET', '/news?limit=2&page=2')).json;
+    const third = (await api('GET', '/news?limit=2&page=3')).json;
+    const names = (list: { titulo: string }[]) => list.map((n) => n.titulo);
+    assert.deepEqual(names(first.dados), ['Matéria 0', 'Matéria 1']);
+    assert.deepEqual(names(second.dados), ['Matéria 2', 'Matéria 3']);
+    assert.deepEqual(names(third.dados), ['Matéria 4']);
+    assert.deepEqual([first.temMais, second.temMais, third.temMais], [true, true, false]);
+    assert.equal((await api('GET', '/news?limit=5')).json.temMais, false);
+    assert.equal((await api('GET', '/news?limit=abc&page=-1')).status, 200);
+    await reset();
+  });
+
+  describe('matérias anteriores', () => {
+    const dateOf = (index: number) => new Date(NOW.getTime() - index * 86_400_000).toUTCString();
+    const page = (number: number, age = number) =>
+      rss(item(`p${number}`, `Página ${number}`, dateOf(age)));
+    const options = (fetcher: Fetcher) => ({ fetcher, pageDelayMs: 0, feedDelayMs: 0, now: NOW });
+
+    // Responde as páginas de cada feed; a capa vem da página da matéria.
+    const pages = (handler: (page: number) => string, requests: string[] = []): Fetcher =>
+      async (url) => {
+        requests.push(url);
+        if (!url.startsWith('https://webrun.com.br/')) {
+          if (url.includes('paged=')) throw new Error('HTTP 404');
+          return rss('');
+        }
+        const number = /paged=(\d+)/.exec(url);
+        if (number) return handler(Number(number[1]));
+        return '<meta property="og:image" content="https://webrun.com.br/capa.jpg">';
+      };
+
+    it('traz as páginas anteriores até o fim do feed e não repete a busca', async () => {
+      await reset();
+      const requests: string[] = [];
+      const fetcher = pages((n) => {
+        if (n > 3) throw new Error('HTTP 404');
+        return page(n);
+      }, requests);
+
+      const results = await backfillNewsSources(options(fetcher));
+      assert.equal(results.find((r) => r.fonteId === 'webrun')?.novas, 2);
+      const stored = await News.findOne({ titulo: 'Página 2' });
+      assert.equal(stored?.imagemUrl, 'https://webrun.com.br/capa.jpg');
+      assert.equal((await NewsSource.findOne({ fonteId: 'webrun' }))?.historicoConcluido, true);
+
+      requests.length = 0;
+      assert.deepEqual(await backfillNewsSources(options(fetcher)), []);
+      assert.deepEqual(requests, []);
+    });
+
+    it('para no teto de páginas', async () => {
+      await reset();
+      const requests: string[] = [];
+      await backfillNewsSources(options(pages((n) => page(n), requests)));
+      const read = requests.filter((url) => url.startsWith('https://webrun.com.br/feed/?paged='));
+      assert.equal(read.length, 10);
+      assert.equal(read.at(-1), 'https://webrun.com.br/feed/?paged=11');
+    });
+
+    it('para quando as matérias ficam antigas demais', async () => {
+      await reset();
+      const requests: string[] = [];
+      await backfillNewsSources(options(pages((n) => page(n, n === 2 ? 1 : 400), requests)));
+      assert.equal(requests.filter((url) => url.includes('webrun.com.br/feed/?paged=')).length, 2);
+      assert.equal(await News.countDocuments({ fonteId: 'webrun' }), 1);
+    });
+
+    it('falha no meio fica para a próxima rodada, sem abrir de novo o que já entrou', async () => {
+      await reset();
+      let broken = true;
+      const requests: string[] = [];
+      const fetcher = pages((n) => {
+        if (n === 3 && broken) throw new Error('HTTP 503');
+        if (n > 3) throw new Error('HTTP 404');
+        return page(n);
+      }, requests);
+
+      const failed = await backfillNewsSources(options(fetcher));
+      assert.equal(failed.find((r) => r.fonteId === 'webrun')?.erro, 'HTTP 503');
+      assert.equal((await NewsSource.findOne({ fonteId: 'webrun' }))?.historicoConcluido ?? false, false);
+
+      broken = false;
+      requests.length = 0;
+      await backfillNewsSources(options(fetcher));
+      assert.equal(requests.includes('https://webrun.com.br/p2/'), false);
+      assert.equal(requests.includes('https://webrun.com.br/p3/'), true);
+      assert.equal((await NewsSource.findOne({ fonteId: 'webrun' }))?.historicoConcluido, true);
+    });
+
+    it('ignora fonte desligada e não pagina o feed de assuntos gerais', async () => {
+      await reset();
+      await NewsSource.create({ fonteId: 'webrun', ativa: false });
+      const requests: string[] = [];
+      await backfillNewsSources(options(pages((n) => page(n), requests)));
+      assert.equal(requests.some((url) => url.startsWith('https://webrun.com.br')), false);
+      assert.equal(requests.includes('https://correiodecarajas.com.br/feed/?paged=2'), false);
+      assert.equal(requests.includes('https://correiodecarajas.com.br/tag/corrida/feed/?paged=2'), true);
+      await reset();
+    });
+  });
+
+  it('notícia própria continua aparecendo com as fontes desligadas', async () => {
+    await reset();
+    const { token } = await admin();
+    await api('POST', '/news', token, { titulo: 'Própria', conteudo: 'Texto' });
+    await api('PUT', '/news/sources/webrun', token, { ativa: false });
+    assert.equal((await titles()).includes('Própria'), true);
+    await reset();
+  });
+});
+
+describe('rotas', () => {
+  const A = { lat: -6.07, lng: -49.9 };
+  const B = { lat: -6.08, lng: -49.91 };
+  const C = { lat: -6.09, lng: -49.92 };
+  const trecho = (de: typeof A, para: typeof A, extra = {}) => ({
+    coordenadas: [
+      [de.lng, de.lat, 200],
+      [para.lng, para.lat, 210],
+    ],
+    subidaM: 10,
+    ...extra,
+  });
+  const ROTA = { nome: 'Volta do parque', pontos: [A, B, C], trechos: [trecho(A, B), trecho(B, C)] };
+
+  let fakeOrs: Server;
+  let reply: { status: number; body: unknown } = { status: 200, body: {} };
+  let received: { authorization?: string; body?: any; path?: string } = {};
+
+  before(async () => {
+    fakeOrs = createServer((request, response) => {
+      let text = '';
+      request.on('data', (chunk) => (text += chunk));
+      request.on('end', () => {
+        received = { authorization: request.headers.authorization, body: JSON.parse(text), path: request.url };
+        response.writeHead(reply.status, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify(reply.body));
+      });
+    });
+    await new Promise<void>((resolve) => fakeOrs.listen(0, '127.0.0.1', resolve));
+    process.env.ORS_BASE_URL = `http://127.0.0.1:${(fakeOrs.address() as AddressInfo).port}`;
+    process.env.ORS_API_KEY = 'chave-de-teste';
+  });
+
+  after(async () => {
+    delete process.env.ORS_BASE_URL;
+    delete process.env.ORS_API_KEY;
+    await new Promise((resolve) => fakeOrs.close(resolve));
+  });
+
+  describe('trecho a pé', () => {
+    it('pede o caminho a pé com altitude e devolve traçado e subida', async () => {
+      const { token } = await newUser();
+      reply = {
+        status: 200,
+        body: {
+          features: [
+            {
+              geometry: { coordinates: [[-49.9000001, -6.07, 200.123], [-49.905, -6.075, 205], [-49.91, -6.08, 210]] },
+              properties: { ascent: 12.34, descent: 2 },
+            },
+          ],
+        },
+      };
+      const result = await api('POST', '/routes/segment', token, { de: A, para: B });
+      assert.equal(result.status, 200);
+      assert.deepEqual(result.json.dados.coordenadas[0], [-49.9, -6.07, 200.1]);
+      assert.equal(result.json.dados.subidaM, 12.3);
+      assert.equal(received.authorization, 'chave-de-teste');
+      assert.equal(received.path, '/v2/directions/foot-walking/geojson');
+      assert.deepEqual(received.body, { coordinates: [[A.lng, A.lat], [B.lng, B.lat]], elevation: true });
+    });
+
+    it('explica cada falha do serviço', async () => {
+      const { token } = await newUser();
+      const cases: [number, unknown, number, string][] = [
+        [404, { error: { code: 2010 } }, 422, 'sem_caminho'],
+        [500, { error: { code: 2009 } }, 422, 'sem_caminho'],
+        [429, {}, 429, 'limite'],
+        [403, {}, 503, 'indisponivel'],
+        [200, { features: [] }, 503, 'indisponivel'],
+        [200, { features: [{ geometry: { coordinates: [[1, 'x']] } }] }, 503, 'indisponivel'],
+      ];
+      for (const [status, body, expected, code] of cases) {
+        reply = { status, body };
+        const result = await api('POST', '/routes/segment', token, { de: A, para: B });
+        assert.equal(result.status, expected, code);
+        assert.equal(result.json.codigo, code);
+        assert.equal(JSON.stringify(result.json).includes('chave-de-teste'), false);
+      }
+    });
+
+    it('sem chave configurada, avisa sem chamar o serviço', async () => {
+      const { token } = await newUser();
+      delete process.env.ORS_API_KEY;
+      received = {};
+      const result = await api('POST', '/routes/segment', token, { de: A, para: B });
+      process.env.ORS_API_KEY = 'chave-de-teste';
+      assert.equal(result.status, 503);
+      assert.equal(result.json.codigo, 'sem_chave');
+      assert.deepEqual(received, {});
+    });
+
+    it('exige login, pontos válidos e distância razoável', async () => {
+      const { token } = await newUser();
+      assert.equal((await api('POST', '/routes/segment', undefined, { de: A, para: B })).status, 401);
+      assert.equal((await api('POST', '/routes/segment', token, { de: A })).status, 400);
+      assert.equal((await api('POST', '/routes/segment', token, { de: { lat: 91, lng: 0 }, para: B })).status, 400);
+      assert.equal((await api('POST', '/routes/segment', token, { de: { lat: '1', lng: 0 }, para: B })).status, 400);
+      assert.equal((await api('POST', '/routes/segment', token, { de: A, para: { lat: 0, lng: 0 } })).status, 400);
+    });
+
+    it('limita os pedidos de cada usuário por minuto', async () => {
+      const { token } = await newUser();
+      const other = await newUser();
+      reply = { status: 200, body: { features: [{ geometry: { coordinates: [[-49.9, -6.07], [-49.91, -6.08]] }, properties: {} }] } };
+      for (let i = 0; i < 30; i += 1) {
+        assert.equal((await api('POST', '/routes/segment', token, { de: A, para: B })).status, 200);
+      }
+      const blocked = await api('POST', '/routes/segment', token, { de: A, para: B });
+      assert.equal(blocked.status, 429);
+      assert.equal((await api('POST', '/routes/segment', other.token, { de: A, para: B })).status, 200);
+    });
+  });
+
+  describe('rotas salvas', () => {
+    it('salva recalculando distância e subida, sem confiar no que veio do app', async () => {
+      const { id, token } = await newUser();
+      const created = await api('POST', '/routes', token, {
+        ...ROTA,
+        distanciaM: 1,
+        dono: new mongoose.Types.ObjectId().toString(),
+      });
+      assert.equal(created.status, 201);
+      assert.equal(created.json.dados.dono, id);
+      assert.ok(Math.abs(created.json.dados.distanciaM - 3120) < 30, String(created.json.dados.distanciaM));
+      assert.equal(created.json.dados.subidaM, 20);
+      assert.equal(created.json.dados.temLinhaReta, false);
+
+      const list = await api('GET', '/routes', token);
+      assert.equal(list.json.dados.length, 1);
+      assert.equal(list.json.dados[0].trechos, undefined, 'a lista não carrega o traçado');
+
+      const opened = await api('GET', `/routes/${created.json.dados._id}`, token);
+      assert.equal(opened.json.dados.trechos.length, 2);
+      assert.deepEqual(opened.json.dados.trechos[0].coordenadas[0], [A.lng, A.lat, 200]);
+    });
+
+    it('marca a rota que tem trecho em linha reta', async () => {
+      const { token } = await newUser();
+      const created = await api('POST', '/routes', token, {
+        ...ROTA,
+        trechos: [trecho(A, B), trecho(B, C, { emLinhaReta: true })],
+      });
+      assert.equal(created.json.dados.temLinhaReta, true);
+    });
+
+    it('recusa rota inválida', async () => {
+      const { token } = await newUser();
+      const invalid = [
+        { ...ROTA, nome: 'ab' },
+        { ...ROTA, nome: 'x'.repeat(61) },
+        { ...ROTA, pontos: [A], trechos: [] },
+        { ...ROTA, trechos: [trecho(A, B)] },
+        { ...ROTA, pontos: [{ lat: 99, lng: 0 }, B, C] },
+        { ...ROTA, trechos: [trecho(A, B), { coordenadas: [[0, 0]] }] },
+        { ...ROTA, trechos: [trecho(A, B), { coordenadas: [[0, 0], [500, 0]] }] },
+        { ...ROTA, trechos: [trecho(A, B), { coordenadas: [[0, 0], ['a', 0]] }] },
+        { ...ROTA, pontos: 'x' },
+      ];
+      for (const body of invalid) {
+        assert.equal((await api('POST', '/routes', token, body)).status, 400, JSON.stringify(body).slice(0, 80));
+      }
+    });
+
+    it('aceita um traçado longo', async () => {
+      const { token } = await newUser();
+      const coordenadas = Array.from({ length: 5000 }, (_, i) => [-49.9 + i / 100000, -6.07 - i / 100000, 200.5]);
+      const result = await api('POST', '/routes', token, {
+        nome: 'Longão',
+        pontos: [A, B],
+        trechos: [{ coordenadas, subidaM: 50 }],
+      });
+      assert.equal(result.status, 201);
+    });
+
+    it('a rota é privada: outra pessoa não vê, não altera e não exclui', async () => {
+      const owner = await newUser();
+      const stranger = await newUser();
+      const admin = await newUser();
+      await User.updateOne({ _id: admin.id }, { tipo: 'admin' });
+      const { _id } = (await api('POST', '/routes', owner.token, ROTA)).json.dados;
+
+      for (const { token } of [stranger, admin]) {
+        assert.equal((await api('GET', `/routes/${_id}`, token)).status, 404);
+        assert.equal((await api('PUT', `/routes/${_id}`, token, { ...ROTA, nome: 'Roubada' })).status, 404);
+        assert.equal((await api('DELETE', `/routes/${_id}`, token)).status, 404);
+        assert.equal((await api('GET', '/routes', token)).json.dados.length, 0);
+      }
+      assert.equal((await api('GET', `/routes/${_id}`)).status, 401);
+      assert.equal((await api('GET', `/routes/${_id}`, owner.token)).json.dados.nome, ROTA.nome);
+    });
+
+    it('o dono altera e exclui', async () => {
+      const { token } = await newUser();
+      const { _id } = (await api('POST', '/routes', token, ROTA)).json.dados;
+      const updated = await api('PUT', `/routes/${_id}`, token, {
+        nome: 'Só ida',
+        pontos: [A, B],
+        trechos: [trecho(A, B)],
+      });
+      assert.equal(updated.status, 200);
+      assert.equal(updated.json.dados.nome, 'Só ida');
+      assert.equal(updated.json.dados.subidaM, 10);
+      assert.equal((await api('PUT', `/routes/${_id}`, token, { nome: 'x' })).status, 400);
+      assert.equal((await api('DELETE', `/routes/${_id}`, token)).status, 200);
+      assert.equal((await api('GET', `/routes/${_id}`, token)).status, 404);
+      assert.equal((await api('GET', '/routes/id-invalido', token)).status, 404);
+    });
   });
 });
 

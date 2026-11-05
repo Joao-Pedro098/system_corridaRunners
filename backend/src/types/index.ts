@@ -159,8 +159,34 @@ export interface INews extends Document {
   imagemUrl?: string;
   autor: string;
   destaque: boolean;
+  linkOriginal?: string;
+  fonteId?: string;
+  fonteNome?: string;
+  publicadoEm?: Date;
+  oculta: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ISavedRoute extends Document {
+  dono: Types.ObjectId;
+  nome: string;
+  pontos: { lat: number; lng: number }[];
+  trechos: { coordenadas: number[][]; subidaM: number; emLinhaReta: boolean }[];
+  distanciaM: number;
+  subidaM: number;
+  temLinhaReta: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface INewsSource extends Document {
+  fonteId: string;
+  ativa: boolean;
+  ultimaBusca?: Date;
+  ultimoErro?: string;
+  ultimasNovas: number;
+  historicoConcluido: boolean;
 }
 
 export type NotificationType = 'curtida' | 'comentario' | 'seguidor';
