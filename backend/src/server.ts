@@ -1,11 +1,13 @@
 import http from 'http';
+import path from 'path';
 import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app';
 import { connectDatabase } from './config/database';
 import { startNewsSync } from './services/newsSyncService';
 
-dotenv.config();
+// Carrega o .env localizado na raiz do backend independentemente do diretório de onde o comando for executado
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = process.env.PORT || 3000;
 
