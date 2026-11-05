@@ -2,12 +2,13 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { Race } from '../models/Race';
+import { getJwtSecret } from '../config/jwt';
+import { removeNotifications, notify } from '../services/notificationService';
 import { AuthenticatedRequest } from '../types';
 
 // Função auxiliar para gerar JWT
 const generateToken = (id: string): string => {
-  const jwtSecret = process.env.JWT_SECRET || 'secret';
-  return jwt.sign({ id }, jwtSecret, {
+  return jwt.sign({ id }, getJwtSecret(), {
     expiresIn: '30d',
   });
 };
@@ -17,7 +18,13 @@ const generateToken = (id: string): string => {
 // @access  Público
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, senha, tipo, telefone, cidade, estado, bio, avatarUrl } = req.body;
+    const { nome, senha, tipo, telefone, cidade, estado, bio, avatarUrl } = req.body;
+
+    if (typeof req.body.email !== 'string' || typeof senha !== 'string' || typeof nome !== 'string') {
+      res.status(400).json({ sucesso: false, mensagem: 'Informe nome, e-mail e senha.' });
+      return;
+    }
+    const email = req.body.email.trim().toLowerCase();
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -32,7 +39,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       nome,
       email,
       senha,
-      tipo: tipo || 'atleta',
+      // Conta de admin nunca nasce pelo cadastro público.
+      tipo: tipo === 'organizador' ? 'organizador' : 'atleta',
       telefone,
       cidade,
       estado,
@@ -56,6 +64,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      const primeira: any = Object.values(error.errors)[0];
+      res.status(400).json({ sucesso: false, mensagem: primeira?.message || 'Dados inválidos.' });
+      return;
+    }
     res.status(500).json({
       sucesso: false,
       mensagem: error.message || 'Erro ao registrar usuário.',
@@ -70,7 +83,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, senha } = req.body;
 
-    if (!email || !senha) {
+    if (typeof email !== 'string' || typeof senha !== 'string' || !email || !senha) {
       res.status(400).json({
         sucesso: false,
         mensagem: 'Por favor, informe e-mail e senha.',
@@ -78,7 +91,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email }).select('+senha');
+    const user = await User.findOne({ email: email.trim().toLowerCase() }).select('+senha');
     if (!user) {
       res.status(401).json({
         sucesso: false,
@@ -153,7 +166,7 @@ export const getProfileById = async (req: Request, res: Response): Promise<void>
     const { id } = req.params;
 
     const user = await User.findById(id).select(
-      'nome avatarUrl bio cidade estado recordesPessoais estatisticas tipo createdAt'
+      'nome avatarUrl bio cidade estado recordesPessoais estatisticas tipo createdAt seguidores seguindo'
     );
 
     if (!user) {
@@ -161,9 +174,10 @@ export const getProfileById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // O perfil público mostra só as contagens, não a lista de pessoas.
     res.status(200).json({
       sucesso: true,
-      dados: user,
+      dados: { ...user.toObject(), seguidores: user.seguidores.length, seguindo: user.seguindo.length },
     });
   } catch (error: any) {
     res.status(500).json({
@@ -197,11 +211,12 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
     if (estado !== undefined) user.estado = estado;
     if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
     if (bio !== undefined) user.bio = bio;
-    if (recordesPessoais) {
-      user.recordesPessoais = {
-        ...user.recordesPessoais,
-        ...recordesPessoais,
-      };
+    if (recordesPessoais && typeof recordesPessoais === 'object') {
+      for (const chave of ['rp5k', 'rp10k', 'rp21k', 'rp42k'] as const) {
+        if (typeof recordesPessoais[chave] === 'string') {
+          user.recordesPessoais[chave] = recordesPessoais[chave];
+        }
+      }
     }
 
     await user.save();
@@ -215,6 +230,62 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
     res.status(500).json({
       sucesso: false,
       mensagem: error.message || 'Erro ao atualizar perfil.',
+    });
+  }
+};
+
+// @desc    Seguir ou deixar de seguir um atleta
+// @route   POST /api/auth/users/:id/toggle-follow
+// @access  Privado
+export const toggleFollow = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ sucesso: false, mensagem: 'Não autorizado' });
+      return;
+    }
+
+    const { id } = req.params;
+    const meId = req.user._id;
+
+    if (id === meId.toString()) {
+      res.status(400).json({ sucesso: false, mensagem: 'Você não pode seguir a si mesmo.' });
+      return;
+    }
+
+    const alvo = await User.findById(id).select('_id');
+    if (!alvo) {
+      res.status(404).json({ sucesso: false, mensagem: 'Atleta não encontrado.' });
+      return;
+    }
+
+    const jaSegue = (await User.exists({ _id: meId, seguindo: alvo._id })) !== null;
+    const aviso = { destinatario: alvo._id, autor: meId, tipo: 'seguidor' as const };
+
+    if (jaSegue) {
+      await Promise.all([
+        User.updateOne({ _id: meId }, { $pull: { seguindo: alvo._id } }),
+        User.updateOne({ _id: alvo._id }, { $pull: { seguidores: meId } }),
+      ]);
+      await removeNotifications(aviso);
+    } else {
+      await Promise.all([
+        User.updateOne({ _id: meId }, { $addToSet: { seguindo: alvo._id } }),
+        User.updateOne({ _id: alvo._id }, { $addToSet: { seguidores: meId } }),
+      ]);
+      await notify(aviso);
+    }
+
+    const atualizado = await User.findById(alvo._id).select('seguidores');
+
+    res.status(200).json({
+      sucesso: true,
+      seguindo: !jaSegue,
+      totalSeguidores: atualizado?.seguidores.length ?? 0,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      sucesso: false,
+      mensagem: error.message || 'Erro ao atualizar seguidores.',
     });
   }
 };

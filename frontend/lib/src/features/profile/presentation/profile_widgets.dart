@@ -33,7 +33,10 @@ class ProfileHeader extends StatelessWidget {
                 Wrap(
                   spacing: 12,
                   children: [
-                    Text('${user.seguidores} SEGUIDORES', style: RRType.monoS.copyWith(color: c.textMuted)),
+                    Text(
+                      '${user.seguidores} ${user.seguidores == 1 ? 'SEGUIDOR' : 'SEGUIDORES'}',
+                      style: RRType.monoS.copyWith(color: c.textMuted),
+                    ),
                     Text('${user.seguindo ?? 0} SEGUINDO', style: RRType.monoS.copyWith(color: c.textMuted)),
                   ],
                 ),

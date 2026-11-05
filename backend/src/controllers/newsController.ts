@@ -10,7 +10,7 @@ export const getAllNews = async (req: Request, res: Response): Promise<void> => 
     const { categoria, destaque } = req.query;
     const filtro: any = {};
 
-    if (categoria) {
+    if (typeof categoria === 'string') {
       filtro.categoria = categoria;
     }
     if (destaque !== undefined) {

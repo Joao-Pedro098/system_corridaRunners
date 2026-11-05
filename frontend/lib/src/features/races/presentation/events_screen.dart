@@ -13,6 +13,7 @@ import '../../../core/widgets/rr_labels.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/race_model.dart';
+import 'my_races_screen.dart';
 import 'race_form_screen.dart';
 import 'race_widgets.dart';
 
@@ -31,6 +32,7 @@ class _EventsScreenState extends State<EventsScreen> {
   DateTime? _month;
   int? _distance;
   Timer? _debounce;
+  late final RacesBus _bus = context.read<RacesBus>();
 
   /// Mês atual e os dois seguintes.
   late final List<DateTime> _months = () {
@@ -41,12 +43,14 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   void initState() {
     super.initState();
+    _bus.addListener(_load);
     _load();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _bus.removeListener(_load);
     super.dispose();
   }
 
@@ -71,10 +75,9 @@ class _EventsScreenState extends State<EventsScreen> {
     _debounce = Timer(const Duration(milliseconds: 350), _load);
   }
 
-  Future<void> _newRace() async {
-    final created = await rrPush<bool>(context, const RaceFormScreen());
-    if (created == true) _load();
-  }
+  void _newRace() => rrPush(context, const RaceFormScreen());
+
+  void _myRaces() => rrPush(context, const MyRacesScreen());
 
   @override
   Widget build(BuildContext context) {
@@ -133,9 +136,12 @@ class _EventsScreenState extends State<EventsScreen> {
     } else if (_error != null) {
       body = RRErrorState(message: _error!, onRetry: _load);
     } else if (_races.isEmpty) {
-      body = const RREmptyState(
-        title: 'Nenhuma prova nesta rota',
-        text: 'Tente outra busca, outro mês ou outra distância.',
+      final filtered = _query.isNotEmpty || _month != null || _distance != null;
+      body = RREmptyState(
+        title: filtered ? 'Nenhuma prova nesta rota' : 'O calendário está vazio',
+        text: filtered
+            ? 'Tente outra busca, outro mês ou outra distância.'
+            : 'As provas cadastradas pelos organizadores aparecem aqui.',
       );
     } else {
       body = LayoutBuilder(
@@ -159,10 +165,12 @@ class _EventsScreenState extends State<EventsScreen> {
                   child: Text('CALENDÁRIO DE CORRIDAS', style: RRType.displayM.copyWith(color: c.textPrimary)),
                 ),
                 if (canCreate) ...[
+                  RRButton('Minhas provas', kind: RRButtonKind.ghost, onPressed: _myRaces),
+                  const SizedBox(width: 4),
                   RRButton('Nova prova', icon: 'mais', onPressed: _newRace),
                   const SizedBox(width: 12),
                 ],
-                RRSearch(onChanged: _onSearch, width: 320),
+                RRSearch(onChanged: _onSearch, width: canCreate ? 240 : 320),
               ],
             )
           else ...[
@@ -171,7 +179,17 @@ class _EventsScreenState extends State<EventsScreen> {
             RRSearch(onChanged: _onSearch),
             if (canCreate) ...[
               const SizedBox(height: 12),
-              RRButton('Nova prova', icon: 'mais', expand: true, onPressed: _newRace),
+              Row(
+                children: [
+                  Expanded(
+                    child: RRButton('Minhas provas', kind: RRButtonKind.secondary, expand: true, onPressed: _myRaces),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RRButton('Nova prova', icon: 'mais', expand: true, onPressed: _newRace),
+                  ),
+                ],
+              ),
             ],
           ],
           const SizedBox(height: 16),

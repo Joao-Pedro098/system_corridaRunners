@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createWorkout,
   getFeed,
+  getWorkoutById,
   getWorkoutsByUserId,
   toggleLike,
   addComment,
@@ -11,6 +12,7 @@ import {
 } from '../controllers/workoutController';
 import { protect } from '../middlewares/authMiddleware';
 import { receiveWorkoutPhotos } from '../middlewares/uploadMiddleware';
+import { validateObjectId } from '../middlewares/validateObjectId';
 
 const router = Router();
 
@@ -18,7 +20,10 @@ const router = Router();
 router.get('/feed', getFeed);
 
 // Treinos de um atleta específico (Perfil)
-router.get('/user/:userId', getWorkoutsByUserId);
+router.get('/user/:userId', validateObjectId('userId'), getWorkoutsByUserId);
+
+// Um treino específico (usado ao abrir uma notificação)
+router.get('/:id', validateObjectId('id'), getWorkoutById);
 
 // Criar novo treino (requer autenticação)
 router.post('/', protect, createWorkout);
@@ -27,15 +32,15 @@ router.post('/', protect, createWorkout);
 router.post('/photos', protect, receiveWorkoutPhotos, uploadWorkoutPhotos);
 
 // Curtir / Descurtir treino
-router.post('/:id/like', protect, toggleLike);
+router.post('/:id/like', protect, validateObjectId('id'), toggleLike);
 
 // Adicionar comentário
-router.post('/:id/comments', protect, addComment);
+router.post('/:id/comments', protect, validateObjectId('id'), addComment);
 
 // Excluir comentário
-router.delete('/:id/comments/:commentId', protect, deleteComment);
+router.delete('/:id/comments/:commentId', protect, validateObjectId('id', 'commentId'), deleteComment);
 
 // Excluir treino
-router.delete('/:id', protect, deleteWorkout);
+router.delete('/:id', protect, validateObjectId('id'), deleteWorkout);
 
 export default router;

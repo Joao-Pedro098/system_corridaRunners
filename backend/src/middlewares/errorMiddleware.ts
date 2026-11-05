@@ -17,10 +17,11 @@ export const errorHandler = (
 ): void => {
   console.error('Erro na aplicação:', err);
 
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  // Erros do cliente, como JSON malformado, trazem o próprio status.
+  const clientError = err.status >= 400 && err.status < 500;
+  const statusCode = clientError ? err.status : res.statusCode === 200 ? 500 : res.statusCode;
   res.status(statusCode).json({
     sucesso: false,
-    mensagem: err.message || 'Erro interno do servidor',
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    mensagem: clientError ? 'Requisição inválida.' : 'Erro interno do servidor',
   });
 };

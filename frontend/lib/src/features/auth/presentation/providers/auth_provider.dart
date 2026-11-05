@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_service.dart';
@@ -104,6 +105,13 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Segue ou deixa de seguir. Devolve o novo total de seguidores do atleta.
+  Future<int> toggleFollow(String userId) async {
+    final data = await ApiClient.post(ApiConstants.toggleFollow(userId));
+    await refreshUser();
+    return (data['totalSeguidores'] as num? ?? 0).toInt();
   }
 
   Future<void> logout() async {

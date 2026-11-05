@@ -3,6 +3,7 @@ import authRoutes from './authRoutes';
 import raceRoutes from './raceRoutes';
 import newsRoutes from './newsRoutes';
 import workoutRoutes from './workoutRoutes';
+import notificationRoutes from './notificationRoutes';
 
 const router = Router();
 
@@ -10,6 +11,7 @@ router.use('/auth', authRoutes);
 router.use('/races', raceRoutes);
 router.use('/news', newsRoutes);
 router.use('/workouts', workoutRoutes);
+router.use('/notifications', notificationRoutes);
 
 // Endpoint de verificação de status da API
 router.get('/health', (req, res) => {

@@ -80,6 +80,11 @@ class WorkoutsProvider extends ChangeNotifier {
   static Future<List<WorkoutModel>> byUser(String userId) async =>
       _parse(await ApiClient.get('${ApiConstants.workouts}/user/$userId'));
 
+  static Future<WorkoutModel> byId(String id) async {
+    final data = await ApiClient.get('${ApiConstants.workouts}/$id');
+    return WorkoutModel.fromJson(data['dados'] as Map<String, dynamic>);
+  }
+
   /// Envia as fotos e devolve os caminhos para usar ao publicar.
   Future<List<String>> uploadPhotos(List<XFile> photos) async {
     final files = <http.MultipartFile>[

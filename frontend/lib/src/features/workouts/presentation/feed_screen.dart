@@ -149,11 +149,7 @@ class _DesktopHeader extends StatelessWidget {
         Expanded(
           child: Text(title.toUpperCase(), style: RRType.displayM.copyWith(color: c.textPrimary)),
         ),
-        RRIconButton(
-          'notificacao',
-          tooltip: 'Notificações',
-          onPressed: () => rrPush(context, const NotificationsScreen()),
-        ),
+        const NotificationBell(),
         const SizedBox(width: 8),
         InkWell(
           onTap: onAvatar,
@@ -175,11 +171,19 @@ class _NextRace extends StatefulWidget {
 
 class _NextRaceState extends State<_NextRace> {
   RaceModel? _race;
+  late final RacesBus _bus = context.read<RacesBus>();
 
   @override
   void initState() {
     super.initState();
+    _bus.addListener(_load);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _bus.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -187,7 +191,7 @@ class _NextRaceState extends State<_NextRace> {
       final races = await RaceService.list();
       final now = DateTime.now();
       final next = races.where((r) => r.data.isAfter(now) && r.status != 'cancelada');
-      if (mounted && next.isNotEmpty) setState(() => _race = next.first);
+      if (mounted) setState(() => _race = next.isEmpty ? null : next.first);
     } catch (_) {
       // Bloco complementar: sem prova, a coluna apenas não o exibe.
     }

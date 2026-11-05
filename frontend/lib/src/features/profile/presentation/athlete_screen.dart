@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/rr_theme.dart';
 import '../../../core/utils/format.dart';
+import '../../../core/widgets/rr_button.dart';
 import '../../../core/widgets/rr_feedback.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/data/models/user_model.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import '../../workouts/data/workout_model.dart';
 import '../../workouts/presentation/workout_history_screen.dart';
 import '../../workouts/presentation/workout_widgets.dart';
@@ -27,6 +30,25 @@ class _AthleteScreenState extends State<AthleteScreen> {
   UserModel? _user;
   List<WorkoutModel> _workouts = [];
   String? _error;
+  bool _followBusy = false;
+
+  Future<void> _toggleFollow() async {
+    final user = _user;
+    if (user == null || _followBusy) return;
+    final auth = context.read<AuthProvider>();
+    setState(() => _followBusy = true);
+    HapticFeedback.lightImpact();
+    try {
+      final total = await auth.toggleFollow(widget.userId);
+      if (mounted) {
+        setState(() => _user = UserModel.fromJson({...user.toJson(), 'seguidores': total}));
+      }
+    } on ApiException catch (e) {
+      if (mounted) showRRToast(context, e.message, error: true);
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
+    }
+  }
 
   @override
   void initState() {
@@ -57,6 +79,8 @@ class _AthleteScreenState extends State<AthleteScreen> {
     final user = _user;
     final provider = context.watch<WorkoutsProvider>();
     final workouts = _workouts.where((w) => !provider.isDeleted(w.id)).toList();
+    final me = context.watch<AuthProvider>().user;
+    final following = me?.seguindoIds.contains(widget.userId) ?? false;
     return RRSubPage(
       title: 'Atleta',
       child: _error != null
@@ -67,6 +91,17 @@ class _AthleteScreenState extends State<AthleteScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ProfileHeader(user: user),
+                if (me != null && me.id != widget.userId) ...[
+                  const SizedBox(height: 16),
+                  RRButton(
+                    following ? 'Seguindo' : 'Seguir',
+                    kind: following ? RRButtonKind.secondary : RRButtonKind.primary,
+                    icon: following ? 'confirmar' : 'mais',
+                    expand: true,
+                    loading: _followBusy,
+                    onPressed: _toggleFollow,
+                  ),
+                ],
                 if (user.bio != null && user.bio!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(user.bio!, style: RRType.textM.copyWith(color: c.textSecondary)),

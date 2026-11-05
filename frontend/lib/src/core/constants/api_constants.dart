@@ -34,5 +34,7 @@ class ApiConstants {
   static String get races => '$baseUrl/races';
   static String get news => '$baseUrl/news';
   static String get workoutPhotos => '$baseUrl/workouts/photos';
+  static String get notifications => '$baseUrl/notifications';
+  static String toggleFollow(String id) => '$baseUrl/auth/users/$id/toggle-follow';
   static String raceAction(String id, String action) => '$baseUrl/auth/races/$id/$action';
 }

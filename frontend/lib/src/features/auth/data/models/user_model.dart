@@ -15,6 +15,9 @@ class UserModel {
   final int? seguindo;
   final List<String> corridasSalvas;
 
+  /// Ids de quem o atleta logado segue, para mostrar o botão certo nos perfis.
+  final List<String> seguindoIds;
+
   UserModel({
     required this.id,
     required this.nome,
@@ -31,6 +34,7 @@ class UserModel {
     this.seguidores,
     this.seguindo,
     this.corridasSalvas = const [],
+    this.seguindoIds = const [],
   });
 
   /// Conta itens de uma lista do backend ou aceita o total já salvo localmente.
@@ -56,6 +60,9 @@ class UserModel {
       estatisticas: json['estatisticas'] as Map<String, dynamic>?,
       seguidores: _count(json['seguidores']),
       seguindo: _count(json['seguindo']),
+      seguindoIds: ((json['seguindo'] is List ? json['seguindo'] : json['seguindoIds']) as List? ?? const [])
+          .map((id) => id.toString())
+          .toList(),
       // A rota /me devolve as provas populadas; as demais, apenas os ids.
       corridasSalvas: (json['corridasSalvas'] as List? ?? const [])
           .map((r) => r is Map ? r['_id'].toString() : r.toString())
@@ -80,6 +87,7 @@ class UserModel {
       'seguidores': seguidores,
       'seguindo': seguindo,
       'corridasSalvas': corridasSalvas,
+      'seguindoIds': seguindoIds,
     };
   }
 }

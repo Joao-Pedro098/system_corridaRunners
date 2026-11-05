@@ -8,6 +8,7 @@ import '../../../core/widgets/rr_labels.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../races/data/race_model.dart';
+import '../../races/presentation/my_races_screen.dart';
 import '../../races/presentation/race_widgets.dart';
 import '../../workouts/presentation/workout_history_screen.dart';
 import '../../workouts/presentation/workout_widgets.dart';
@@ -26,6 +27,27 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   List<RaceModel> _saved = [];
   String _savedKey = '';
+  late final RacesBus _bus = context.read<RacesBus>();
+
+  @override
+  void initState() {
+    super.initState();
+    _bus.addListener(_reloadSaved);
+  }
+
+  @override
+  void dispose() {
+    _bus.removeListener(_reloadSaved);
+    super.dispose();
+  }
+
+  /// Uma prova salva pode ter sido editada ou excluída.
+  void _reloadSaved() {
+    _savedKey = '';
+    context.read<AuthProvider>().refreshUser();
+    final ids = context.read<AuthProvider>().user?.corridasSalvas;
+    if (ids != null) _syncSaved(ids);
+  }
 
   /// Recarrega as provas salvas sempre que a lista de ids mudar.
   void _syncSaved(List<String> ids) {
@@ -76,6 +98,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         const RRSectionHead('Conta'),
         const SizedBox(height: 4),
+        if (user.tipo == 'organizador' || user.tipo == 'admin')
+          RRInfoLine(
+            icon: 'largada',
+            title: 'Organização',
+            value: 'Minhas provas',
+            onTap: () => rrPush(context, const MyRacesScreen()),
+          ),
         RRInfoLine(
           icon: 'editar',
           title: 'Dados do perfil',

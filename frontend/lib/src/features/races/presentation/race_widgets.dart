@@ -27,10 +27,65 @@ Future<void> toggleRacePresence(BuildContext context, RaceModel race) async {
   }
 }
 
+/// Fundo da capa: imagem do organizador com véu escuro para o texto ler bem,
+/// ou as raias sobre a cor do status quando não houver imagem.
+class RaceCoverBackground extends StatelessWidget {
+  final RaceModel race;
+  final Uint8List? localCover;
+  final Widget? lanes;
+  const RaceCoverBackground({super.key, required this.race, this.localCover, this.lanes});
+
+  /// Com imagem, o texto da capa é sempre claro.
+  static Color foreground(RaceModel race, {Uint8List? localCover}) =>
+      localCover != null || race.coverUrl != null ? RRPalette.cal50 : race.tone.foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = race.tone;
+    final art =
+        lanes ??
+        RRLanes(
+          color: tone.lanes,
+          fromRight: 30,
+          cy: 190,
+          halfStraight: 40,
+          r0: 40,
+          step: 22,
+          count: 7,
+          strokeWidth: 8,
+        );
+    final url = race.coverUrl;
+    if (localCover == null && url == null) return ColoredBox(color: tone.background, child: art);
+    // Imagem que não carrega vira Asfalto, onde o texto claro continua legível.
+    Widget failed(BuildContext _, Object _, StackTrace? _) => const ColoredBox(color: RRPalette.cal950);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        localCover != null
+            ? Image.memory(localCover!, fit: BoxFit.cover, errorBuilder: failed)
+            : Image.network(url!, fit: BoxFit.cover, errorBuilder: failed),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x99111311), Color(0x66111311), Color(0xB3111311)],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class RaceCard extends StatefulWidget {
   final RaceModel race;
   final ValueChanged<RaceModel>? onChanged;
-  const RaceCard({super.key, required this.race, this.onChanged});
+  final Uint8List? localCover;
+
+  /// No formulário o cartão é só uma prévia: não abre detalhes nem conta números.
+  final bool previewOnly;
+  const RaceCard({super.key, required this.race, this.onChanged, this.localCover, this.previewOnly = false});
 
   @override
   State<RaceCard> createState() => _RaceCardState();
@@ -71,6 +126,7 @@ class _RaceCardState extends State<RaceCard> {
     final c = context.rr;
     final race = widget.race;
     final tone = race.tone;
+    final foreground = RaceCoverBackground.foreground(race, localCover: widget.localCover);
     final userId = context.select<AuthProvider, String?>((a) => a.user?.id);
     final going = race.participantes.contains(userId);
 
@@ -105,9 +161,10 @@ class _RaceCardState extends State<RaceCard> {
                   Positioned.fill(
                     child: Hero(
                       tag: _heroTag,
-                      child: ColoredBox(
-                        color: tone.background,
-                        child: ValueListenableBuilder<Offset>(
+                      child: RaceCoverBackground(
+                        race: race,
+                        localCover: widget.localCover,
+                        lanes: ValueListenableBuilder<Offset>(
                           valueListenable: _lanesShift,
                           builder: (_, shift, child) => TweenAnimationBuilder<Offset>(
                             tween: Tween(end: shift),
@@ -141,11 +198,11 @@ class _RaceCardState extends State<RaceCard> {
                           children: [
                             Text(
                               race.data.day.toString().padLeft(2, '0'),
-                              style: RRType.dataXL.copyWith(color: tone.foreground),
+                              style: RRType.dataXL.copyWith(color: foreground),
                             ),
                             Text(
                               Fmt.monthShort(race.data.month).toUpperCase(),
-                              style: RRType.monoM.copyWith(color: tone.foreground),
+                              style: RRType.monoM.copyWith(color: foreground),
                             ),
                           ],
                         ),

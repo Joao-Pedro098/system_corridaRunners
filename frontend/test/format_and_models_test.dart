@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/src/core/utils/format.dart';
 import 'package:frontend/src/features/auth/data/models/user_model.dart';
+import 'package:frontend/src/features/home/data/notification_model.dart';
 import 'package:frontend/src/features/news/data/news_model.dart';
 import 'package:frontend/src/features/races/data/race_model.dart';
 import 'package:frontend/src/features/workouts/data/workout_model.dart';
@@ -94,6 +95,54 @@ void main() {
       final c = WorkoutComment.fromJson({'_id': 'c1', 'autor': 'u1', 'texto': 'oi'});
       expect(c.id, 'c1');
       expect(c.autor.id, 'u1');
+    });
+  });
+
+  group('notificações', () {
+    NotificationModel notice(String tipo, dynamic treino) => NotificationModel.fromJson({
+      '_id': 'n1',
+      'tipo': tipo,
+      'autor': {'_id': 'u2', 'nome': 'Marina'},
+      'treino': treino,
+      'lida': false,
+      'createdAt': '2026-11-05T12:00:00.000Z',
+    });
+
+    test('lê treino populado e descreve a ação', () {
+      final like = notice('curtida', {'_id': 't1', 'titulo': 'Longão'});
+      expect(like.treinoId, 't1');
+      expect(like.treinoTitulo, 'Longão');
+      expect(like.action, 'curtiu seu treino');
+      expect(like.autor.nome, 'Marina');
+    });
+
+    test('aviso de seguidor não tem treino', () {
+      final follow = notice('seguidor', null);
+      expect(follow.treinoId, isNull);
+      expect(follow.action, 'começou a seguir você');
+    });
+  });
+
+  group('seguir', () {
+    test('quem o atleta segue sobrevive ao armazenamento local', () {
+      final fromApi = UserModel.fromJson({
+        '_id': 'u',
+        'nome': 'João',
+        'email': 'j@x.com',
+        'seguindo': ['a', 'b'],
+      });
+      expect(fromApi.seguindo, 2);
+      expect(fromApi.seguindoIds, ['a', 'b']);
+      final saved = UserModel.fromJson(fromApi.toJson());
+      expect(saved.seguindo, 2);
+      expect(saved.seguindoIds, ['a', 'b']);
+    });
+
+    test('perfil público traz só as contagens', () {
+      final public = UserModel.fromJson({'_id': 'u', 'nome': 'Ana', 'seguidores': 12, 'seguindo': 3});
+      expect(public.seguidores, 12);
+      expect(public.seguindo, 3);
+      expect(public.seguindoIds, isEmpty);
     });
   });
 

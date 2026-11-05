@@ -7,7 +7,6 @@ import '../../../../core/motion/rr_motion.dart';
 import '../../../../core/theme/rr_theme.dart';
 import '../../../../core/widgets/rr_button.dart';
 import '../../../../core/widgets/rr_labels.dart';
-import '../../../../core/widgets/rr_layout.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../news/presentation/news_screen.dart';
 import '../../../profile/presentation/profile_screen.dart';
@@ -15,6 +14,7 @@ import '../../../races/presentation/events_screen.dart';
 import '../../../workouts/presentation/feed_screen.dart';
 import '../../../workouts/presentation/new_workout_screen.dart';
 import '../../../workouts/presentation/workouts_provider.dart';
+import '../../data/notification_model.dart';
 import '../notifications_screen.dart';
 
 const _destinations = [
@@ -40,6 +40,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Navegadores internos precisam do próprio controlador de Hero.
   final _heroController = MaterialApp.createMaterialHeroController();
   bool _fabVisible = true;
+  NotificationsProvider? _notifications;
 
   @override
   void initState() {
@@ -49,11 +50,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       workouts.loadFeed();
       final id = context.read<AuthProvider>().user?.id;
       if (id != null) workouts.loadMine(id);
+      _notifications = context.read<NotificationsProvider>()..startPolling();
     });
   }
 
   @override
   void dispose() {
+    _notifications?.stopPolling();
     _tab.dispose();
     super.dispose();
   }
@@ -218,11 +221,7 @@ class _TopBar extends StatelessWidget {
         children: [
           const RRLockup(height: 24),
           const Spacer(),
-          RRIconButton(
-            'notificacao',
-            tooltip: 'Notificações',
-            onPressed: () => rrPush(context, const NotificationsScreen()),
-          ),
+          const NotificationBell(),
           const SizedBox(width: 4),
           Tooltip(
             message: 'Perfil',

@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { WorkoutPost } from '../models/WorkoutPost';
 import { User } from '../models/User';
 import { AuthenticatedRequest } from '../types';
+import { notify, removeNotifications } from '../services/notificationService';
+import { parsePagination } from '../utils/http';
 import {
   MAX_WORKOUT_PHOTOS,
   detectImageExtension,
@@ -166,16 +168,14 @@ export const createWorkout = async (req: AuthenticatedRequest, res: Response): P
 // @access  Público ou Privado
 export const getFeed = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { page = 1, limit = 20, tipoTreino } = req.query;
+    const { tipoTreino } = req.query;
 
     const filtro: any = {};
-    if (tipoTreino) {
+    if (typeof tipoTreino === 'string') {
       filtro.tipoTreino = tipoTreino;
     }
 
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const { page: pageNum, limit: limitNum, skip } = parsePagination(req.query);
 
     const [treinos, total] = await Promise.all([
       WorkoutPost.find(filtro)
@@ -198,6 +198,29 @@ export const getFeed = async (req: AuthenticatedRequest, res: Response): Promise
     res.status(500).json({
       sucesso: false,
       mensagem: error.message || 'Erro ao carregar o feed.',
+    });
+  }
+};
+
+// @desc    Obter um treino pelo id
+// @route   GET /api/workouts/:id
+// @access  Público
+export const getWorkoutById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const treino = await WorkoutPost.findById(req.params.id)
+      .populate('atleta', 'nome avatarUrl cidade tipo')
+      .populate('comentarios.autor', 'nome avatarUrl');
+
+    if (!treino) {
+      res.status(404).json({ sucesso: false, mensagem: 'Treino não encontrado.' });
+      return;
+    }
+
+    res.status(200).json({ sucesso: true, dados: treino });
+  } catch (error: any) {
+    res.status(500).json({
+      sucesso: false,
+      mensagem: error.message || 'Erro ao carregar treino.',
     });
   }
 };
@@ -258,6 +281,13 @@ export const toggleLike = async (req: AuthenticatedRequest, res: Response): Prom
 
     await treino.save();
 
+    const aviso = { destinatario: treino.atleta, autor: req.user._id, tipo: 'curtida' as const, treino: treino._id };
+    if (jaCurtiu) {
+      await removeNotifications(aviso);
+    } else {
+      await notify(aviso);
+    }
+
     res.status(200).json({
       sucesso: true,
       curtido: !jaCurtiu,
@@ -284,7 +314,7 @@ export const addComment = async (req: AuthenticatedRequest, res: Response): Prom
     const { id } = req.params;
     const { texto } = req.body;
 
-    if (!texto || !texto.trim()) {
+    if (typeof texto !== 'string' || !texto.trim()) {
       res.status(400).json({ sucesso: false, mensagem: 'O comentário não pode ser vazio.' });
       return;
     }
@@ -302,6 +332,14 @@ export const addComment = async (req: AuthenticatedRequest, res: Response): Prom
     });
 
     await treino.save();
+
+    await notify({
+      destinatario: treino.atleta,
+      autor: req.user._id,
+      tipo: 'comentario',
+      treino: treino._id,
+      comentario: treino.comentarios[treino.comentarios.length - 1]._id,
+    });
 
     const treinoAtualizado = await WorkoutPost.findById(id).populate(
       'comentarios.autor',
@@ -354,8 +392,10 @@ export const deleteComment = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
+    const comentarioId = treino.comentarios[index]._id;
     treino.comentarios.splice(index, 1);
     await treino.save();
+    await removeNotifications({ comentario: comentarioId });
 
     const treinoAtualizado = await WorkoutPost.findById(id).populate(
       'comentarios.autor',
@@ -410,6 +450,7 @@ export const deleteWorkout = async (req: AuthenticatedRequest, res: Response): P
 
     await WorkoutPost.findByIdAndDelete(id);
     await removePhotos(treino.fotos);
+    await removeNotifications({ treino: treino._id });
 
     res.status(200).json({
       sucesso: true,

@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/jwt';
 import { User } from '../models/User';
 import { AuthenticatedRequest, UserRole } from '../types';
 
@@ -32,8 +33,7 @@ export const protect = async (
   }
 
   try {
-    const jwtSecret = process.env.JWT_SECRET || 'secret';
-    const decoded = jwt.verify(token, jwtSecret) as DecodedToken;
+    const decoded = jwt.verify(token, getJwtSecret()) as DecodedToken;
 
     const user = await User.findById(decoded.id).select('-senha');
     if (!user) {

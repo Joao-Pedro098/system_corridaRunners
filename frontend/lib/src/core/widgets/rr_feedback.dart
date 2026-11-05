@@ -199,11 +199,13 @@ Future<bool> showRRConfirm(
                 const SizedBox(height: 10),
                 Text(text, style: RRType.textM.copyWith(color: c.textSecondary)),
                 const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                OverflowBar(
+                  alignment: MainAxisAlignment.end,
+                  spacing: 8,
+                  overflowSpacing: 8,
+                  overflowAlignment: OverflowBarAlignment.end,
                   children: [
                     RRButton('Cancelar', kind: RRButtonKind.ghost, onPressed: () => Navigator.pop(ctx, false)),
-                    const SizedBox(width: 8),
                     RRButton(confirmLabel, onPressed: () => Navigator.pop(ctx, true)),
                   ],
                 ),

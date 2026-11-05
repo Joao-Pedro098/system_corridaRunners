@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
@@ -46,6 +49,7 @@ class RaceModel {
   final String? kitLocal, kitData, kitHorario, kitObservacoes;
   final String? regulamentoUrl, resultadosUrl, fotosUrl, certificadoUrl;
   final String? organizadorNome, organizadorContato;
+  final String? criadoPor, bannerPath;
   final DateTime data;
   final List<RaceDistance> distancias;
   final List<String> participantes;
@@ -74,6 +78,8 @@ class RaceModel {
     this.certificadoUrl,
     this.organizadorNome,
     this.organizadorContato,
+    this.criadoPor,
+    this.bannerPath,
   });
 
   factory RaceModel.fromJson(Map<String, dynamic> json) {
@@ -106,12 +112,17 @@ class RaceModel {
       certificadoUrl: after['linkCertificado'] as String?,
       organizadorNome: organizer['nome'] as String?,
       organizadorContato: organizer['contato'] as String?,
+      criadoPor: json['criadoPor']?.toString(),
+      bannerPath: json['bannerUrl'] as String?,
       // O backend devolve os participantes populados ou apenas os ids.
       participantes: (json['participantesConfirmados'] as List? ?? const [])
           .map((p) => p is Map ? p['_id'].toString() : p.toString())
           .toList(),
     );
   }
+
+  /// Link completo da capa enviada pelo organizador, se houver.
+  String? get coverUrl => bannerPath == null || bannerPath!.isEmpty ? null : ApiConstants.mediaUrl(bannerPath!);
 
   String get statusLabel => (statuses[status] ?? statuses['agendada']!).$1;
   RRTone get statusTone => (statuses[status] ?? statuses['agendada']!).$2;
@@ -159,7 +170,32 @@ class RaceService {
   static Future<bool> toggleSave(String id) async =>
       (await ApiClient.post(ApiConstants.raceAction(id, 'toggle-save')))['salva'] as bool;
 
-  static Future<void> create(Map<String, dynamic> body) => ApiClient.post(ApiConstants.races, body);
+  static Future<RaceModel> create(Map<String, dynamic> body) async =>
+      RaceModel.fromJson((await ApiClient.post(ApiConstants.races, body))['dados'] as Map<String, dynamic>);
+
+  static Future<RaceModel> update(String id, Map<String, dynamic> body) async =>
+      RaceModel.fromJson((await ApiClient.put('${ApiConstants.races}/$id', body))['dados'] as Map<String, dynamic>);
+
+  static Future<void> delete(String id) => ApiClient.delete('${ApiConstants.races}/$id');
+
+  /// Provas cadastradas pelo organizador logado.
+  static Future<List<RaceModel>> mine() async {
+    final data = await ApiClient.get('${ApiConstants.races}/mine');
+    return (data['dados'] as List).map((e) => RaceModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Envia a capa e devolve o caminho para salvar na prova.
+  static Future<String> uploadCover(XFile file) async {
+    final data = await ApiClient.upload('${ApiConstants.races}/cover', [
+      http.MultipartFile.fromBytes(
+        'capa',
+        await file.readAsBytes(),
+        filename: file.name,
+        contentType: MediaType.parse(file.mimeType ?? 'image/jpeg'),
+      ),
+    ]);
+    return data['dados'] as String;
+  }
 
   /// Provas favoritadas pelo atleta logado.
   static Future<List<RaceModel>> saved() async {
@@ -170,4 +206,9 @@ class RaceService {
         .map(RaceModel.fromJson)
         .toList();
   }
+}
+
+/// Avisa as telas abertas de que alguma prova foi criada, alterada ou excluída.
+class RacesBus extends ChangeNotifier {
+  void changed() => notifyListeners();
 }

@@ -10,8 +10,8 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 // Por enquanto as fotos ficam em disco. Para usar um serviço como o Cloudinary,
 // basta trocar savePhoto, removePhotos e o formato validado em isOwnPhotoPath.
 export const UPLOAD_ROOT = path.resolve(__dirname, '../../uploads');
-const PUBLIC_PREFIX = '/uploads/workouts/';
-const WORKOUTS_DIR = path.join(UPLOAD_ROOT, 'workouts');
+
+type PhotoFolder = 'workouts' | 'races';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -36,6 +36,26 @@ export const receiveWorkoutPhotos = (req: Request, res: Response, next: NextFunc
   });
 };
 
+const coverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PHOTO_BYTES, files: 1 },
+}).single('capa');
+
+// Recebe a imagem de capa de uma prova.
+export const receiveRaceCover = (req: Request, res: Response, next: NextFunction): void => {
+  coverUpload(req, res, (error: unknown) => {
+    if (!error) {
+      next();
+      return;
+    }
+    const tooBig = error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE';
+    res.status(400).json({
+      sucesso: false,
+      mensagem: tooBig ? 'A capa pode ter no máximo 5 MB.' : 'Não foi possível receber a imagem.',
+    });
+  });
+};
+
 // Identifica o formato pelo conteúdo do arquivo: o nome e o tipo informados
 // pelo cliente não são confiáveis.
 export const detectImageExtension = (data: Buffer): 'jpg' | 'png' | 'webp' | null => {
@@ -54,23 +74,29 @@ export const detectImageExtension = (data: Buffer): 'jpg' | 'png' | 'webp' | nul
 };
 
 // O nome leva o id do atleta para que ninguém publique a foto de outra pessoa.
-export const savePhoto = async (data: Buffer, extension: string, userId: string): Promise<string> => {
-  await fs.mkdir(WORKOUTS_DIR, { recursive: true });
+export const savePhoto = async (
+  data: Buffer,
+  extension: string,
+  userId: string,
+  folder: PhotoFolder = 'workouts'
+): Promise<string> => {
+  const directory = path.join(UPLOAD_ROOT, folder);
+  await fs.mkdir(directory, { recursive: true });
   const name = `${userId}-${randomUUID()}.${extension}`;
-  await fs.writeFile(path.join(WORKOUTS_DIR, name), data);
-  return `${PUBLIC_PREFIX}${name}`;
+  await fs.writeFile(path.join(directory, name), data);
+  return `/uploads/${folder}/${name}`;
 };
 
-export const isOwnPhotoPath = (value: unknown, userId: string): boolean =>
+export const isOwnPhotoPath = (value: unknown, userId: string, folder: PhotoFolder = 'workouts'): boolean =>
   typeof value === 'string' &&
-  new RegExp(`^${PUBLIC_PREFIX}${userId}-[0-9a-f-]{36}\\.(jpg|png|webp)$`).test(value);
+  new RegExp(`^/uploads/${folder}/${userId}-[0-9a-f-]{36}\\.(jpg|png|webp)$`).test(value);
 
 // Só apaga caminhos no formato gerado por savePhoto. Falha ao apagar não deve
-// impedir a exclusão do treino.
+// impedir a exclusão do treino ou da prova.
 export const removePhotos = async (paths: string[]): Promise<void> => {
   await Promise.all(
     paths
-      .filter((p) => /^\/uploads\/workouts\/[0-9a-f]+-[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p))
-      .map((p) => fs.unlink(path.join(WORKOUTS_DIR, path.basename(p))).catch(() => undefined))
+      .filter((p) => /^\/uploads\/(workouts|races)\/[0-9a-f]+-[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p))
+      .map((p) => fs.unlink(path.join(UPLOAD_ROOT, p.replace('/uploads/', ''))).catch(() => undefined))
   );
 };

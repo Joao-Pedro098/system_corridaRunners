@@ -1,5 +1,8 @@
 import mongoose, { Schema } from 'mongoose';
 import { IRace } from '../types';
+import { isOptionalHttpUrl } from '../utils/http';
+
+const linkRule = { validator: isOptionalHttpUrl, message: 'Use um link completo, com http ou https.' };
 
 const raceSchema = new Schema<IRace>(
   {
@@ -48,6 +51,7 @@ const raceSchema = new Schema<IRace>(
     linkInscricao: {
       type: String,
       trim: true,
+      validate: linkRule,
     },
     preco: {
       type: String,
@@ -62,15 +66,21 @@ const raceSchema = new Schema<IRace>(
     regulamentoUrl: {
       type: String,
       trim: true,
+      validate: linkRule,
     },
+    // Capa enviada pelo organizador (/uploads/races/...) ou link externo antigo.
     bannerUrl: {
       type: String,
       trim: true,
+      validate: {
+        validator: (value?: string | null) => !value || value.startsWith('/uploads/races/') || isOptionalHttpUrl(value),
+        message: 'Capa inválida.',
+      },
     },
     posCorrida: {
-      linkResultadosChip: { type: String, trim: true },
-      linkGaleriaFotos: { type: String, trim: true },
-      linkCertificado: { type: String, trim: true },
+      linkResultadosChip: { type: String, trim: true, validate: linkRule },
+      linkGaleriaFotos: { type: String, trim: true, validate: linkRule },
+      linkCertificado: { type: String, trim: true, validate: linkRule },
     },
     organizador: {
       nome: { type: String, trim: true },
@@ -82,6 +92,11 @@ const raceSchema = new Schema<IRace>(
       enum: ['agendada', 'inscricoes_abertas', 'inscricoes_encerradas', 'em_andamento', 'concluida', 'cancelada'],
       default: 'inscricoes_abertas',
       index: true,
+    },
+    // Quem cadastrou a prova: só essa pessoa ou um admin pode alterá-la.
+    criadoPor: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
     participantesConfirmados: [
       {

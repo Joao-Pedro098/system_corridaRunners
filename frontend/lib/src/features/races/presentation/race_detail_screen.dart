@@ -14,6 +14,7 @@ import '../../../core/widgets/rr_labels.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/race_model.dart';
+import 'race_form_screen.dart';
 import 'race_widgets.dart';
 
 class RaceDetailScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class RaceDetailScreen extends StatefulWidget {
 }
 
 class _RaceDetailScreenState extends State<RaceDetailScreen> {
+  late RaceModel _race = widget.race;
   bool _busy = false;
   // As raias da capa se afastam em ritmo diferente do texto ao rolar.
   final _scroll = ScrollController();
@@ -49,7 +51,7 @@ class _RaceDetailScreenState extends State<RaceDetailScreen> {
   Future<void> _confirm() async {
     setState(() => _busy = true);
     try {
-      await toggleRacePresence(context, widget.race);
+      await toggleRacePresence(context, _race);
     } on ApiException catch (e) {
       if (mounted) showRRToast(context, e.message, error: true);
     } finally {
@@ -60,9 +62,38 @@ class _RaceDetailScreenState extends State<RaceDetailScreen> {
   Future<void> _save() async {
     final auth = context.read<AuthProvider>();
     try {
-      final saved = await RaceService.toggleSave(widget.race.id);
+      final saved = await RaceService.toggleSave(_race.id);
       await auth.refreshUser();
       if (mounted) showRRToast(context, saved ? 'Prova salva no seu perfil.' : 'Prova removida das salvas.');
+    } on ApiException catch (e) {
+      if (mounted) showRRToast(context, e.message, error: true);
+    }
+  }
+
+  Future<void> _edit() async {
+    final updated = await rrPush<RaceModel>(context, RaceFormScreen(race: _race));
+    if (updated != null && mounted) setState(() => _race = updated);
+  }
+
+  Future<void> _delete() async {
+    final bus = context.read<RacesBus>();
+    final going = _race.participantes.length;
+    final confirmed = await showRRConfirm(
+      context,
+      title: 'Excluir prova?',
+      text: going > 0
+          ? '$going ${going == 1 ? 'pessoa confirmou' : 'pessoas confirmaram'} presença e não ${going == 1 ? 'será avisada' : 'serão avisadas'}. '
+                'Se a prova não vai acontecer, considere marcar como cancelada. Essa ação não pode ser desfeita.'
+          : 'Ela sai do calendário e das provas salvas. Essa ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+    );
+    if (!confirmed) return;
+    try {
+      await RaceService.delete(_race.id);
+      bus.changed();
+      if (!mounted) return;
+      showRRToast(context, 'Prova excluída.');
+      Navigator.pop(context);
     } on ApiException catch (e) {
       if (mounted) showRRToast(context, e.message, error: true);
     }
@@ -77,8 +108,9 @@ class _RaceDetailScreenState extends State<RaceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.rr;
-    final race = widget.race;
+    final race = _race;
     final user = context.watch<AuthProvider>().user;
+    final canManage = user != null && (user.tipo == 'admin' || race.criadoPor == user.id);
     final going = race.participantes.contains(user?.id);
     final saved = user?.corridasSalvas.contains(race.id) ?? false;
     final desktop = RRBreakpoints.isDesktop(context);
@@ -132,7 +164,15 @@ class _RaceDetailScreenState extends State<RaceDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _RaceCover(race: race, saved: saved, onSave: _save, heroTag: widget.heroTag, lanesShift: _lanesShift),
+                  _RaceCover(
+                    race: race,
+                    saved: saved,
+                    onSave: _save,
+                    heroTag: widget.heroTag,
+                    lanesShift: _lanesShift,
+                    onEdit: canManage ? _edit : null,
+                    onDelete: canManage ? _delete : null,
+                  ),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: desktop ? 32 : 16, vertical: 20),
                     child: RRCentered(
@@ -238,7 +278,10 @@ class _RaceCover extends StatelessWidget {
   final VoidCallback onSave;
   final Object? heroTag;
   final ValueListenable<Offset> lanesShift;
+  final VoidCallback? onEdit, onDelete;
   const _RaceCover({
+    this.onEdit,
+    this.onDelete,
     required this.race,
     required this.saved,
     required this.onSave,
@@ -249,6 +292,7 @@ class _RaceCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = race.tone;
+    final foreground = RaceCoverBackground.foreground(race);
     final top = MediaQuery.paddingOf(context).top;
     final desktop = RRBreakpoints.isDesktop(context);
     // Nomes longos usam um corpo menor para não tomar a tela.
@@ -258,9 +302,9 @@ class _RaceCover extends StatelessWidget {
     final date =
         '${race.data.day.toString().padLeft(2, '0')} ${Fmt.monthShort(race.data.month)} ${race.data.year}$time';
 
-    final background = ColoredBox(
-      color: tone.background,
-      child: RRLanes(
+    final background = RaceCoverBackground(
+      race: race,
+      lanes: RRLanes(
         color: tone.lanes,
         fromRight: -10,
         cy: -10,
@@ -292,16 +336,21 @@ class _RaceCover extends StatelessWidget {
                     RRIconButton(
                       'voltar',
                       tooltip: 'Voltar',
-                      color: tone.foreground,
+                      color: foreground,
                       onPressed: () => Navigator.maybePop(context),
                     ),
                     RRIconButton(
                       'salvar',
                       tooltip: saved ? 'Remover das salvas' : 'Salvar prova',
-                      color: tone.foreground,
+                      color: foreground,
                       filled: saved,
                       onPressed: onSave,
                     ),
+                    const Spacer(),
+                    if (onEdit != null)
+                      RRIconButton('editar', tooltip: 'Editar prova', color: foreground, onPressed: onEdit),
+                    if (onDelete != null)
+                      RRIconButton('excluir', tooltip: 'Excluir prova', color: foreground, onPressed: onDelete),
                   ],
                 ),
                 const SizedBox(height: 36),
@@ -310,13 +359,13 @@ class _RaceCover extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(date.toUpperCase(), style: RRType.monoM.copyWith(color: tone.foreground)),
+                      Text(date.toUpperCase(), style: RRType.monoM.copyWith(color: foreground)),
                       const SizedBox(height: 12),
                       RRMaskedLine(
                         delay: const Duration(milliseconds: 120),
                         child: Text(
                           race.nome.toUpperCase(),
-                          style: RRType.hero(size, size * .88).copyWith(color: tone.foreground),
+                          style: RRType.hero(size, size * .88).copyWith(color: foreground),
                         ),
                       ),
                     ],
@@ -326,7 +375,7 @@ class _RaceCover extends StatelessWidget {
             ),
           ),
           // Mantém o símbolo discreto fora da faixa de texto em telas largas.
-          if (desktop) Positioned(right: 32, bottom: 24, child: RRSymbol(height: 40, color: tone.foreground)),
+          if (desktop) Positioned(right: 32, bottom: 24, child: RRSymbol(height: 40, color: foreground)),
         ],
       ),
     );

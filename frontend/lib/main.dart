@@ -6,7 +6,9 @@ import 'src/core/theme/rr_theme.dart';
 import 'src/core/theme/theme_provider.dart';
 import 'src/features/auth/presentation/providers/auth_provider.dart';
 import 'src/features/auth/presentation/screens/welcome_screen.dart';
+import 'src/features/home/data/notification_model.dart';
 import 'src/features/home/presentation/screens/main_navigation_screen.dart';
+import 'src/features/races/data/race_model.dart';
 import 'src/features/workouts/presentation/workouts_provider.dart';
 
 void main() {
@@ -24,6 +26,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WorkoutsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => RacesBus()),
       ],
       child: Builder(
         builder: (context) => MaterialApp(

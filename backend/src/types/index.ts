@@ -137,6 +137,7 @@ export interface IRace extends Document {
   posCorrida?: IPostRaceLinks;
   organizador?: IOrganizerInfo;
   status: RaceStatus;
+  criadoPor?: Types.ObjectId;
   participantesConfirmados: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -158,6 +159,20 @@ export interface INews extends Document {
   imagemUrl?: string;
   autor: string;
   destaque: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type NotificationType = 'curtida' | 'comentario' | 'seguidor';
+
+export interface INotification extends Document {
+  _id: Types.ObjectId;
+  destinatario: Types.ObjectId;
+  autor: Types.ObjectId;
+  tipo: NotificationType;
+  treino?: Types.ObjectId;
+  comentario?: Types.ObjectId;
+  lida: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
