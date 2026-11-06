@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../routes/data/route_model.dart';
 import '../data/workout_model.dart';
 
 /// Estado do feed e dos treinos do atleta logado.
@@ -83,6 +84,13 @@ class WorkoutsProvider extends ChangeNotifier {
   static Future<WorkoutModel> byId(String id) async {
     final data = await ApiClient.get('${ApiConstants.workouts}/$id');
     return WorkoutModel.fromJson(data['dados'] as Map<String, dynamic>);
+  }
+
+  /// Traçado completo do treino. As listagens só trazem o resumo.
+  static Future<RouteDraft?> fullRoute(String id) async {
+    final data = await ApiClient.get('${ApiConstants.workouts}/$id');
+    final route = (data['dados'] as Map<String, dynamic>)['rota'] as Map<String, dynamic>?;
+    return route == null ? null : RouteDraft.fromJson(route);
   }
 
   /// Envia as fotos e devolve os caminhos para usar ao publicar.

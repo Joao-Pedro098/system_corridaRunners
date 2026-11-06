@@ -73,6 +73,7 @@ export interface IWorkoutPost extends Document {
   altimetria?: number;    // Em metros
   sensacaoEsforco?: EffortLevel;
   fotos: string[];
+  rota?: IWorkoutRoute;
   curtidas: Types.ObjectId[];
   comentarios: IWorkoutComment[];
   dataTreino: Date;
@@ -87,6 +88,11 @@ export interface IRouteShape {
   distanciaM: number;
   subidaM: number;
   temLinhaReta: boolean;
+}
+
+export interface IWorkoutRoute extends IRouteShape {
+  nome: string;
+  resumo: number[][]; // [longitude, latitude], só para desenhar os cartões
 }
 
 export interface IRaceDistance {

@@ -18,6 +18,16 @@ const isCoordinate = (value: unknown): value is number[] =>
   isLatitude(value[1]) &&
   (value.length === 2 || (typeof value[2] === 'number' && Number.isFinite(value[2])));
 
+/** Traçado reduzido a poucos pontos [longitude, latitude], mantendo a largada e a chegada. */
+export const summarizeRoute = (trechos: IRouteShape['trechos'], maxPoints = 80): number[][] => {
+  const all = trechos.flatMap((trecho) => trecho.coordenadas);
+  const step = Math.max(1, (all.length - 1) / (maxPoints - 1));
+  const picked: number[][] = [];
+  for (let i = 0; Math.round(i) < all.length - 1; i += step) picked.push(all[Math.round(i)]);
+  if (all.length > 0) picked.push(all[all.length - 1]);
+  return picked.map(([lng, lat]) => [Number(lng.toFixed(5)), Number(lat.toFixed(5))]);
+};
+
 /**
  * Valida o traçado de uma rota salva ou do percurso de uma prova.
  * Copia só os campos conhecidos. A distância é sempre recalculada aqui.

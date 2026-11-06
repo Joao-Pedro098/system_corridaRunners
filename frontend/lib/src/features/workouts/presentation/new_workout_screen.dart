@@ -15,6 +15,7 @@ import '../../../core/widgets/rr_field.dart';
 import '../../../core/widgets/rr_labels.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
+import '../../routes/data/route_model.dart';
 import '../data/workout_model.dart';
 import 'workouts_provider.dart';
 
@@ -54,6 +55,10 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
 
   int get _photoCount => _existing.length + _photos.length;
 
+  /// Rota escolhida nesta tela. Na edição, sem mexer, o treino mantém a que já tem.
+  String? _routeId, _routeName;
+  bool _routeChanged = false, _loadingRoutes = false;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +77,7 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
     _effort = w.effortLevel;
     _date = w.dataTreino.toLocal();
     _existing.addAll(w.fotos);
+    _routeName = w.rota?.nome;
   }
 
   @override
@@ -98,6 +104,59 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
       lastDate: _date.isAfter(now) ? _date : now,
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _pickRoute() async {
+    setState(() => _loadingRoutes = true);
+    final List<RouteSummary> routes;
+    try {
+      routes = await RouteService.mine();
+    } on ApiException catch (e) {
+      if (mounted) showRRToast(context, e.message, error: true);
+      return;
+    } finally {
+      if (mounted) setState(() => _loadingRoutes = false);
+    }
+    if (!mounted) return;
+    if (routes.isEmpty && _routeName == null) {
+      showRRToast(context, 'Você ainda não tem rotas. Planeje uma na aba Rotas.', icon: 'rota');
+      return;
+    }
+
+    // A escolha vem embrulhada: fechar a folha sem escolher não é o mesmo que "sem rota".
+    final choice = await showModalBottomSheet<({RouteSummary? route})>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(title: const Text('Sem rota'), onTap: () => Navigator.pop(context, (route: null))),
+              for (final route in routes)
+                ListTile(
+                  title: Text(route.nome, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text('${route.temLinhaReta ? '~' : ''}${Fmt.km(route.distanciaM / 1000)} km'),
+                  onTap: () => Navigator.pop(context, (route: route)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    final route = choice.route;
+    setState(() {
+      _routeId = route?.id;
+      _routeName = route?.nome;
+      _routeChanged = true;
+      // Só sugere a distância: quem já digitou correu o que digitou.
+      if (route != null && _distance.text.trim().isEmpty) {
+        _distance.text = (route.distanciaM / 1000).toStringAsFixed(2).replaceAll('.', ',');
+      }
+    });
   }
 
   Future<void> _pickPhotos() async {
@@ -300,6 +359,7 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
         'sensacaoEsforco': WorkoutModel.efforts[_effort - 1],
         'dataTreino': _date.toIso8601String(),
         'fotos': [..._existing, ...?_uploaded],
+        if (_routeChanged) 'rotaId': _routeId,
       };
       final editing = widget.workout;
       if (editing != null) {
@@ -442,6 +502,21 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
               ),
               const SizedBox(height: 20),
               RRInfoLine(icon: 'calendario', title: 'Data do treino', value: Fmt.dayMonthYear(_date), onTap: _pickDate),
+              const SizedBox(height: 8),
+              RRInfoLine(
+                icon: 'rota',
+                title: 'Rota — opcional',
+                value: _loadingRoutes ? 'Carregando…' : _routeName ?? 'Escolher uma rota salva',
+                onTap: _loadingRoutes ? null : _pickRoute,
+              ),
+              if (_routeName != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'O traçado e o nome da rota ficam visíveis para todos que virem este treino, '
+                  'e podem mostrar onde você costuma correr. Evite rotas que saem da sua casa.',
+                  style: RRType.textS.copyWith(color: c.textSecondary),
+                ),
+              ],
               const SizedBox(height: 20),
               RRField(
                 controller: _description,

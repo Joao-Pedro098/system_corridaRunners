@@ -1,9 +1,12 @@
 import { Response } from 'express';
+import mongoose from 'mongoose';
+import { SavedRoute } from '../models/SavedRoute';
 import { WorkoutPost } from '../models/WorkoutPost';
 import { User } from '../models/User';
-import { AuthenticatedRequest } from '../types';
+import { AuthenticatedRequest, IWorkoutRoute } from '../types';
 import { notify, removeNotifications } from '../services/notificationService';
 import { parsePagination } from '../utils/http';
+import { summarizeRoute } from '../utils/routeInput';
 import {
   MAX_WORKOUT_PHOTOS,
   detectImageExtension,
@@ -32,6 +35,19 @@ const calcularPace = (distanciaKm: number, totalSegundos: number): string => {
   const minutos = Math.floor(segundosPorKm / 60);
   const segundos = Math.round(segundosPorKm % 60);
   return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')} min/km`;
+};
+
+// O traçado completo é pesado: só vem ao abrir o treino.
+const WITHOUT_FULL_ROUTE = '-rota.pontos -rota.trechos';
+
+// Copia para o treino uma rota da própria pessoa. A rota de outra pessoa é tratada
+// como inexistente, para não revelar que ela existe.
+const copySavedRoute = async (rotaId: unknown, userId: unknown): Promise<IWorkoutRoute | null> => {
+  if (typeof rotaId !== 'string' || !mongoose.isValidObjectId(rotaId)) return null;
+  const rota = await SavedRoute.findOne({ _id: rotaId, dono: userId });
+  if (!rota) return null;
+  const { nome, pontos, trechos, distanciaM, subidaM, temLinhaReta } = rota.toObject();
+  return { nome, pontos, trechos, distanciaM, subidaM, temLinhaReta, resumo: summarizeRoute(trechos) };
 };
 
 // @desc    Enviar fotos de um treino (retorna os caminhos para usar ao publicar)
@@ -115,6 +131,12 @@ export const createWorkout = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
+    const rota = req.body.rotaId ? await copySavedRoute(req.body.rotaId, req.user._id) : undefined;
+    if (rota === null) {
+      res.status(404).json({ sucesso: false, mensagem: 'Rota não encontrada.' });
+      return;
+    }
+
     const distNum = Number(distanciaKm);
     const duracaoNum = Number(duracaoSegundos);
 
@@ -134,6 +156,7 @@ export const createWorkout = async (req: AuthenticatedRequest, res: Response): P
       sensacaoEsforco: sensacaoEsforco || 'moderado',
       fotos: listaFotos as string[],
       dataTreino: dataTreino ? new Date(dataTreino) : new Date(),
+      ...(rota ? { rota } : {}),
     });
 
     // Atualiza estatísticas acumuladas do atleta
@@ -179,6 +202,7 @@ export const getFeed = async (req: AuthenticatedRequest, res: Response): Promise
 
     const [treinos, total] = await Promise.all([
       WorkoutPost.find(filtro)
+        .select(WITHOUT_FULL_ROUTE)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
@@ -233,6 +257,7 @@ export const getWorkoutsByUserId = async (req: AuthenticatedRequest, res: Respon
     const { userId } = req.params;
 
     const treinos = await WorkoutPost.find({ atleta: userId })
+      .select(WITHOUT_FULL_ROUTE)
       .sort({ dataTreino: -1 })
       .populate('atleta', 'nome avatarUrl cidade tipo')
       .populate('comentarios.autor', 'nome avatarUrl');
@@ -467,6 +492,20 @@ export const updateWorkout = async (req: AuthenticatedRequest, res: Response): P
         return;
       }
       treino.fotos = body.fotos;
+    }
+
+    // Só muda se o pedido falar da rota: null a retira do treino.
+    if ('rotaId' in body) {
+      if (body.rotaId === null) {
+        treino.rota = undefined;
+      } else {
+        const rota = await copySavedRoute(body.rotaId, req.user._id);
+        if (!rota) {
+          res.status(404).json({ sucesso: false, mensagem: 'Rota não encontrada.' });
+          return;
+        }
+        treino.rota = rota;
+      }
     }
 
     const kmAntigo = treino.distanciaKm;

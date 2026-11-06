@@ -13,7 +13,7 @@ const segmentSchema = new Schema(
   { _id: false }
 );
 
-const routeShapeFields = {
+export const routeShapeFields = {
   pontos: { type: [pointSchema], required: true },
   trechos: { type: [segmentSchema], required: true },
   distanciaM: { type: Number, required: true },

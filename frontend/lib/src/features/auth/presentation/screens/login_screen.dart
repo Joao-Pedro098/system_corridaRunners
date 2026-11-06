@@ -101,11 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Checkbox(value: _rememberMe, onChanged: (val) => setState(() => _rememberMe = val ?? true)),
                     Text('Lembrar de mim', style: RRType.textM.copyWith(color: c.textSecondary)),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => showRRToast(context, 'Recuperação de senha em desenvolvimento.', icon: 'senha'),
-                      child: Text('Esqueceu a senha?', style: RRType.labelS.copyWith(color: c.textLink)),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 16),

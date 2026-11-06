@@ -12,7 +12,7 @@ O **RunnersRun** é uma solução completa para aproximar atletas e organizadore
 - **🏃 Comunidade & Feed:** Publicação de treinos com distância (km), tempo, cálculo automático de ritmo médio (*pace* em min/km), fotos, curtidas e comentários.
 - **📅 Calendário de Eventos:** Centralização das provas de corrida de rua da região com filtros por mês e distâncias (5k, 10k, 21k, etc.), mapas, retirada de kits, link de inscrições oficiais e confirmação de presença (*"Eu Vou!"*).
 - **📰 Notícias & Dicas:** Artigos informativos sobre dicas de treino, nutrição, prevenção de lesões e comunicados das provas locais.
-- **🗺️ Rotas & Percursos:** Planejador de rotas no mapa que segue as ruas, com distância, subida, tempo estimado e exportação em GPX. Os organizadores usam o mesmo mapa para desenhar o percurso de cada distância da prova.
+- **🗺️ Rotas & Percursos:** Planejador de rotas no mapa que segue as ruas, com distância, subida, tempo estimado e exportação em GPX. Os organizadores usam o mesmo mapa para desenhar o percurso de cada distância da prova. As rotas são privadas, e o atleta pode publicar uma cópia do traçado junto com um treino.
 - **👤 Perfil do Atleta:** Foto de perfil, mural de recordes pessoais (RP 5k, 10k, 21k, 42k), estatísticas acumuladas de volume e histórico de atividades.
 
 ---

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/brand/rr_brand.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/motion/rr_motion.dart';
 import '../../../core/theme/rr_theme.dart';
@@ -14,13 +13,17 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/workout_model.dart';
 import 'new_workout_screen.dart';
 import 'workout_gallery.dart';
+import 'workout_route_section.dart';
 import 'workout_widgets.dart';
 import 'workouts_provider.dart';
 
 class WorkoutDetailScreen extends StatefulWidget {
   final WorkoutModel workout;
   final Object? heroTag;
-  const WorkoutDetailScreen({super.key, required this.workout, this.heroTag});
+
+  /// Os testes não baixam mapas da internet.
+  final bool showTiles;
+  const WorkoutDetailScreen({super.key, required this.workout, this.heroTag, this.showTiles = true});
 
   @override
   State<WorkoutDetailScreen> createState() => _WorkoutDetailScreenState();
@@ -131,12 +134,11 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
           const SizedBox(height: 16),
           Text(workout.titulo.toUpperCase(), style: RRType.displayS.copyWith(color: c.textPrimary)),
           const SizedBox(height: 16),
-          if (workout.photoUrls.isEmpty)
-            RouteArt(seed: workout.id, height: 220)
-          else
+          if (workout.photoUrls.isNotEmpty) ...[
             // Outras fotos recomeçam a galeria, que guarda a posição atual.
             WorkoutGallery(key: ValueKey(workout.fotos.join()), photos: workout.photoUrls, heroTag: widget.heroTag),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
+          ],
           WorkoutMetrics(workout),
           const SizedBox(height: 16),
           Wrap(
@@ -153,6 +155,12 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
             const SizedBox(height: 16),
             Text(workout.descricao, style: RRType.textL.copyWith(color: c.textPrimary)),
           ],
+          // Trocar a rota numa edição recarrega o traçado.
+          WorkoutRouteSection(
+            key: ValueKey(workout.rota?.resumo.join()),
+            workout: workout,
+            showTiles: widget.showTiles,
+          ),
           const SizedBox(height: 16),
           RRButton(
             liked ? 'Curtido • ${workout.curtidas.length}' : 'Curtir • ${workout.curtidas.length}',

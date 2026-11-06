@@ -240,13 +240,14 @@ class _DrawnLanesPainter extends CustomPainter {
   bool shouldRepaint(_DrawnLanesPainter old) => old.lanes != lanes;
 }
 
-/// Arte de percurso: curvas de nível com um traçado por cima. O backend ainda
-/// não guarda o GPS do treino, então o traçado é ilustrativo e varia pelo [seed].
+/// Curvas de nível com o traçado real por cima, sem baixar mapa. Sem [points], só o
+/// fundo: nunca desenhamos um trajeto que o atleta não fez.
 /// A rota se desenha ao aparecer e corre de novo quando o ponteiro passa.
 class RouteArt extends StatefulWidget {
-  final String seed;
+  /// Pontos [longitude, latitude] do traçado.
+  final List<List<double>>? points;
   final double height;
-  const RouteArt({super.key, required this.seed, this.height = 136});
+  const RouteArt({super.key, this.points, this.height = 136});
 
   @override
   State<RouteArt> createState() => _RouteArtState();
@@ -288,7 +289,8 @@ class _RouteArtState extends State<RouteArt> with SingleTickerProviderStateMixin
             fit: StackFit.expand,
             children: [
               const RepaintBoundary(child: CustomPaint(painter: _ContourPainter())),
-              RepaintBoundary(child: CustomPaint(painter: _RoutePainter(widget.seed.hashCode, _controller))),
+              if (widget.points != null && widget.points!.length >= 2)
+                RepaintBoundary(child: CustomPaint(painter: _RoutePainter(widget.points!, _controller))),
             ],
           ),
         ),
@@ -325,28 +327,41 @@ class _ContourPainter extends CustomPainter {
 }
 
 class _RoutePainter extends CustomPainter {
-  final int seed;
+  final List<List<double>> points;
   final Animation<double> progress;
-  _RoutePainter(this.seed, this.progress) : super(repaint: progress);
+  _RoutePainter(this.points, this.progress) : super(repaint: progress);
 
   Size? _cachedSize;
   late Path _route;
   late Offset _start, _end;
 
   void _build(Size size) {
-    final cx = size.width / 2, y = size.height / 2;
-    // A escala acompanha o espaço, para o traçado caber até nas miniaturas.
-    final rnd = math.Random(seed);
-    final k = (size.width / 358).clamp(.17, 1.7);
-    final v = (size.height / 136).clamp(.45, 1.6);
-    double j(double value) => value * v * (.55 + rnd.nextDouble() * .9);
-    _start = Offset(cx - 124 * k, y + 28 * v);
-    _end = Offset(cx + 124 * k, y - 24 * v);
-    _route = Path()
-      ..moveTo(_start.dx, _start.dy)
-      ..cubicTo(cx - 88 * k, y - j(32), cx - 58 * k, y + j(38), cx - 18 * k, y + j(4))
-      ..cubicTo(cx + 2 * k, y - j(20), cx + 28 * k, y - j(44), cx + 64 * k, y - j(8))
-      ..cubicTo(cx + 84 * k, y + j(14), cx + 100 * k, y + j(20), _end.dx, _end.dy);
+    final lngs = points.map((p) => p[0]), lats = points.map((p) => p[1]);
+    final minLng = lngs.reduce(math.min), maxLng = lngs.reduce(math.max);
+    final minLat = lats.reduce(math.min), maxLat = lats.reduce(math.max);
+    // Longe do equador, um grau de longitude é mais curto: sem isso o traçado sairia deformado.
+    final squeeze = math.cos((minLat + maxLat) / 2 * math.pi / 180);
+    final spanX = (maxLng - minLng) * squeeze, spanY = maxLat - minLat;
+
+    final margin = size.width < 120 ? 8.0 : 18.0;
+    final room = Size(size.width - margin * 2, size.height - margin * 2);
+    final scale = math.min(
+      spanX > 0 ? room.width / spanX : double.infinity,
+      spanY > 0 ? room.height / spanY : double.infinity,
+    );
+    // Todos os pontos no mesmo lugar: sem escala, ficam no centro.
+    final zoom = scale.isFinite ? scale : 0.0;
+    final dx = (size.width - spanX * zoom) / 2, dy = (size.height - spanY * zoom) / 2;
+    Offset place(List<double> p) =>
+        Offset(dx + (p[0] - minLng) * squeeze * zoom, dy + (maxLat - p[1]) * zoom);
+
+    _start = place(points.first);
+    _end = place(points.last);
+    _route = Path()..moveTo(_start.dx, _start.dy);
+    for (final point in points.skip(1)) {
+      final at = place(point);
+      _route.lineTo(at.dx, at.dy);
+    }
     _cachedSize = size;
   }
 
@@ -364,7 +379,9 @@ class _RoutePainter extends CustomPainter {
       ..strokeWidth = small ? 2 : 3.5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    final metric = _route.computeMetrics().first;
+    final metrics = _route.computeMetrics().iterator;
+    if (!metrics.moveNext()) return;
+    final metric = metrics.current;
     final drawn = metric.length * t;
     canvas.drawPath(t >= 1 ? _route : metric.extractPath(0, drawn), line);
 
@@ -384,5 +401,5 @@ class _RoutePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RoutePainter old) => old.seed != seed || old.progress != progress;
+  bool shouldRepaint(_RoutePainter old) => old.points != points || old.progress != progress;
 }

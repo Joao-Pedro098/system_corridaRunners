@@ -1234,6 +1234,83 @@ describe('rotas', () => {
   });
 });
 
+describe('rota no treino', () => {
+  const A = { lat: -6.07, lng: -49.9 };
+  const B = { lat: -6.08, lng: -49.91 };
+  const longa = Array.from({ length: 500 }, (_, i) => [-49.9 - i / 1e4, -6.07 - i / 1e4, 200]);
+  const ROTA = { nome: 'Volta do parque', pontos: [A, B], trechos: [{ coordenadas: longa, subidaM: 30 }] };
+  const newRoute = async (token: string) => (await api('POST', '/routes', token, ROTA)).json.dados;
+
+  it('publica uma cópia: resumo nas listas e traçado completo só ao abrir', async () => {
+    const { token, id } = await newUser();
+    const route = await newRoute(token);
+    const created = await api('POST', '/workouts', token, { ...WORKOUT, rotaId: route._id });
+    assert.equal(created.status, 201);
+    const workoutId = created.json.dados._id;
+
+    const feed = (await api('GET', '/workouts/feed?limit=50')).json.dados.find((w: any) => w._id === workoutId);
+    assert.equal(feed.rota.nome, 'Volta do parque');
+    assert.ok(feed.rota.resumo.length >= 2 && feed.rota.resumo.length <= 80);
+    assert.deepEqual(feed.rota.resumo[0], [-49.9, -6.07]);
+    assert.deepEqual(feed.rota.resumo.at(-1), [longa[499][0], longa[499][1]].map((v) => Number(v.toFixed(5))));
+    assert.equal(feed.rota.trechos, undefined);
+    assert.equal(feed.rota.pontos, undefined);
+
+    const mine = (await api('GET', `/workouts/user/${id}`)).json.dados[0];
+    assert.equal(mine.rota.trechos, undefined);
+
+    const opened = (await api('GET', `/workouts/${workoutId}`)).json.dados;
+    assert.equal(opened.rota.trechos[0].coordenadas.length, 500);
+    assert.equal(opened.rota.pontos.length, 2);
+    assert.equal(opened.rota.subidaM, 30);
+  });
+
+  it('a rota original continua privada, e mudá-la não altera o treino', async () => {
+    const owner = await newUser();
+    const other = await newUser();
+    const route = await newRoute(owner.token);
+    const { _id } = (await api('POST', '/workouts', owner.token, { ...WORKOUT, rotaId: route._id })).json.dados;
+
+    assert.equal((await api('GET', `/routes/${route._id}`, other.token)).status, 404);
+    await api('PUT', `/routes/${route._id}`, owner.token, { ...ROTA, nome: 'Outro nome' });
+    assert.equal((await api('GET', `/workouts/${_id}`)).json.dados.rota.nome, 'Volta do parque');
+    await api('DELETE', `/routes/${route._id}`, owner.token);
+    assert.equal((await api('GET', `/workouts/${_id}`)).json.dados.rota.trechos[0].coordenadas.length, 500);
+  });
+
+  it('não publica a rota de outra pessoa nem id inválido', async () => {
+    const owner = await newUser();
+    const other = await newUser();
+    const route = await newRoute(owner.token);
+    assert.equal((await api('POST', '/workouts', other.token, { ...WORKOUT, rotaId: route._id })).status, 404);
+    assert.equal((await api('POST', '/workouts', other.token, { ...WORKOUT, rotaId: 'abc' })).status, 404);
+    assert.equal((await api('POST', '/workouts', other.token, { ...WORKOUT, rotaId: { $ne: null } })).status, 404);
+
+    const { _id } = (await api('POST', '/workouts', other.token, WORKOUT)).json.dados;
+    assert.equal((await api('PUT', `/workouts/${_id}`, other.token, { rotaId: route._id })).status, 404);
+    assert.equal((await api('GET', `/workouts/${_id}`)).json.dados.rota, undefined);
+    assert.equal(
+      (await api('POST', '/workouts', other.token, { ...WORKOUT, rota: { nome: 'Forjada', resumo: [[0, 0]] } })).json.dados.rota,
+      undefined
+    );
+  });
+
+  it('a edição coloca, mantém e retira a rota', async () => {
+    const { token } = await newUser();
+    const route = await newRoute(token);
+    const { _id } = (await api('POST', '/workouts', token, WORKOUT)).json.dados;
+
+    const added = await api('PUT', `/workouts/${_id}`, token, { rotaId: route._id });
+    assert.equal(added.json.dados.rota.nome, 'Volta do parque');
+    const kept = await api('PUT', `/workouts/${_id}`, token, { titulo: 'Só o título' });
+    assert.equal(kept.json.dados.rota.nome, 'Volta do parque');
+    const removed = await api('PUT', `/workouts/${_id}`, token, { rotaId: null });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.json.dados.rota, undefined);
+    assert.equal((await api('GET', `/workouts/${_id}`)).json.dados.rota, undefined);
+  });
+});
+
 describe('edição de treino', () => {
   const stats = async (token: string) => (await api('GET', '/auth/me', token)).json.dados.estatisticas;
 

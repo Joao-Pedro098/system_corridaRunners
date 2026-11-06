@@ -160,7 +160,7 @@ class WorkoutCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final art = RouteArt(seed: workout.id, height: height);
+    final art = RouteArt(points: workout.rota?.resumo, height: height);
     final photos = workout.photoUrls;
     if (photos.isEmpty) return art;
     return ClipRRect(

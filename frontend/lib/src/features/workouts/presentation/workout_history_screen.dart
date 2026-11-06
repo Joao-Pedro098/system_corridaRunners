@@ -70,7 +70,7 @@ class _HistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.rr;
     final type = WorkoutModel.types[workout.tipoTreino] ?? WorkoutModel.types['rodagem']!;
-    final art = RouteArt(seed: workout.id, height: 72);
+    final art = RouteArt(points: workout.rota?.resumo, height: 72);
     final photos = workout.photoUrls;
     return RRCard(
       padding: const EdgeInsets.all(12),

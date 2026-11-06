@@ -229,9 +229,9 @@ void main() {
     testWidgets('a data salva fora do intervalo normal não quebra o calendário', (tester) async {
       final old = {..._workoutJson(), 'dataTreino': '2010-01-01T12:00:00.000Z'};
       await open(tester, NewWorkoutScreen(workout: WorkoutModel.fromJson(old)));
-      await tester.ensureVisible(find.byType(RRInfoLine));
+      await tester.ensureVisible(find.byType(RRInfoLine).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(RRInfoLine));
+      await tester.tap(find.byType(RRInfoLine).first);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byType(DatePickerDialog), findsOneWidget);

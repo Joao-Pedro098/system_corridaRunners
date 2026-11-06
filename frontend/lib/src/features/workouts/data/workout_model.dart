@@ -36,6 +36,34 @@ class WorkoutComment {
   );
 }
 
+/// Rota publicada com o treino. As listagens só trazem o resumo do traçado.
+class WorkoutRoute {
+  final String nome;
+  final int distanciaM, subidaM;
+  final bool temLinhaReta;
+
+  /// Pontos [longitude, latitude] para desenhar os cartões.
+  final List<List<double>> resumo;
+
+  const WorkoutRoute({
+    required this.nome,
+    required this.distanciaM,
+    required this.subidaM,
+    required this.temLinhaReta,
+    required this.resumo,
+  });
+
+  factory WorkoutRoute.fromJson(Map<String, dynamic> json) => WorkoutRoute(
+    nome: json['nome'] as String? ?? '',
+    distanciaM: (json['distanciaM'] as num? ?? 0).toInt(),
+    subidaM: (json['subidaM'] as num? ?? 0).toInt(),
+    temLinhaReta: json['temLinhaReta'] as bool? ?? false,
+    resumo: (json['resumo'] as List? ?? const [])
+        .map((p) => (p as List).map((v) => (v as num).toDouble()).toList())
+        .toList(),
+  );
+}
+
 class WorkoutModel {
   /// Valores de `tipoTreino` no backend: (rótulo, tom da etiqueta).
   static const types = <String, (String, RRTone)>{
@@ -61,6 +89,7 @@ class WorkoutModel {
   int duracaoSegundos, altimetria;
   List<String> fotos;
   DateTime dataTreino;
+  WorkoutRoute? rota;
 
   WorkoutModel({
     required this.id,
@@ -78,6 +107,7 @@ class WorkoutModel {
     required this.curtidas,
     required this.comentarios,
     required this.dataTreino,
+    this.rota,
   });
 
   factory WorkoutModel.fromJson(Map<String, dynamic> json) => WorkoutModel(
@@ -98,6 +128,7 @@ class WorkoutModel {
         .map((e) => WorkoutComment.fromJson(e as Map<String, dynamic>))
         .toList(),
     dataTreino: DateTime.tryParse(json['dataTreino'] as String? ?? '') ?? DateTime.now(),
+    rota: json['rota'] == null ? null : WorkoutRoute.fromJson(json['rota'] as Map<String, dynamic>),
   );
 
   /// Traz os dados que o atleta pode editar.
@@ -113,6 +144,7 @@ class WorkoutModel {
     altimetria = other.altimetria;
     fotos = other.fotos;
     dataTreino = other.dataTreino;
+    rota = other.rota;
   }
 
   /// Fotos com o link completo, prontas para exibir.

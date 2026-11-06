@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 import { IWorkoutPost } from '../types';
+import { routeShapeFields } from './SavedRoute';
 
 const commentSchema = new Schema(
   {
@@ -18,6 +19,18 @@ const commentSchema = new Schema(
   {
     timestamps: true,
   }
+);
+
+// Cópia de uma rota salva, feita quando o atleta escolhe publicá-la. A rota original
+// continua privada, e editá-la ou excluí-la não muda os treinos já publicados.
+const workoutRouteSchema = new Schema(
+  {
+    ...routeShapeFields,
+    nome: { type: String, required: true, trim: true },
+    // Traçado reduzido para os cartões; as listagens não trazem o restante.
+    resumo: { type: [[Number]], default: [] },
+  },
+  { _id: false }
 );
 
 const workoutPostSchema = new Schema<IWorkoutPost>(
@@ -80,6 +93,7 @@ const workoutPostSchema = new Schema<IWorkoutPost>(
         trim: true,
       },
     ],
+    rota: { type: workoutRouteSchema, default: undefined },
     curtidas: [
       {
         type: Schema.Types.ObjectId,
