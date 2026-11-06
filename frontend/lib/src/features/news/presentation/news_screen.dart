@@ -115,7 +115,7 @@ class _NewsScreenState extends State<NewsScreen> {
         builder: (context, box) => RRGrid(
           columns: box.maxWidth >= 1000 ? 3 : (box.maxWidth >= 640 ? 2 : 1),
           gap: 16,
-          children: [for (final n in _items) NewsCard(news: n, key: ValueKey(n.id), onHidden: _load)],
+          children: [for (final n in _items) NewsCard(news: n, key: ValueKey(n.id), onChanged: _load)],
         ),
       );
     }

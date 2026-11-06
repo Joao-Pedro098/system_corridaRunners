@@ -5,6 +5,8 @@ import {
   getNewsById,
   getNewsSources,
   createNews,
+  deleteNews,
+  updateNews,
   setNewsSourceActive,
   setNewsVisibility,
   syncNews,
@@ -23,6 +25,8 @@ router.post('/sources/sync', protect, authorize('admin'), syncNews);
 router.put('/sources/:id', protect, authorize('admin'), setNewsSourceActive);
 
 router.get('/:id', validateObjectId('id'), getNewsById);
+router.put('/:id', protect, authorize('admin', 'organizador'), validateObjectId('id'), updateNews);
+router.delete('/:id', protect, authorize('admin', 'organizador'), validateObjectId('id'), deleteNews);
 router.put('/:id/visibility', protect, authorize('admin'), validateObjectId('id'), setNewsVisibility);
 
 export default router;

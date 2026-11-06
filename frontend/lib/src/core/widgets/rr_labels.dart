@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/api_constants.dart';
 import '../motion/rr_motion.dart';
 import '../theme/rr_theme.dart';
 import '../utils/format.dart';
@@ -167,7 +168,7 @@ class RRAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: c.inverse, shape: BoxShape.circle),
       child: url == null || url!.isEmpty
           ? fallback
-          : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback),
+          : Image.network(ApiConstants.mediaUrl(url!), fit: BoxFit.cover, errorBuilder: (_, _, _) => fallback),
     );
   }
 }

@@ -67,6 +67,13 @@ const newUser = async (tipo?: string): Promise<{ id: string; token: string; emai
   return { id: json.dados._id, token: json.dados.token, email };
 };
 
+// O cadastro público nunca cria admin: a promoção é feita direto no banco.
+const newAdmin = async () => {
+  const admin = await newUser();
+  await User.updateOne({ _id: admin.id }, { tipo: 'admin' });
+  return admin;
+};
+
 const WORKOUT = { titulo: 'Treino', distanciaKm: 10, duracaoSegundos: 3000 };
 const RACE = {
   nome: 'Corrida de Teste',
@@ -91,6 +98,99 @@ after(async () => {
   await new Promise((resolve) => server.close(resolve));
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
+});
+
+describe('troca de senha', () => {
+  const SENHA = 'senha-de-teste';
+
+  it('troca a senha, invalida o token antigo e o novo funciona', async () => {
+    const { token, email } = await newUser();
+    // O token guarda a hora em segundos: é preciso passar para o segundo seguinte.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    const changed = await api('PUT', '/auth/password', token, { senhaAtual: SENHA, novaSenha: 'senha-nova' });
+    assert.equal(changed.status, 200);
+    assert.equal((await api('GET', '/auth/me', token)).status, 401);
+    assert.equal((await api('GET', '/auth/me', changed.json.token)).status, 200);
+
+    assert.equal((await api('POST', '/auth/login', undefined, { email, senha: SENHA })).status, 401);
+    assert.equal((await api('POST', '/auth/login', undefined, { email, senha: 'senha-nova' })).status, 200);
+    assert.notEqual((await User.findOne({ email }).select('+senha'))?.senha, 'senha-nova');
+  });
+
+  it('senha atual errada responde 400, para não encerrar a sessão no app', async () => {
+    const { token } = await newUser();
+    const wrong = await api('PUT', '/auth/password', token, { senhaAtual: 'errada', novaSenha: 'senha-nova' });
+    assert.equal(wrong.status, 400);
+    assert.equal((await api('GET', '/auth/me', token)).status, 200);
+  });
+
+  it('recusa nova senha inválida e pedido sem login', async () => {
+    const { token } = await newUser();
+    const send = (body: unknown, who?: string) => api('PUT', '/auth/password', who, body);
+    assert.equal((await send({ senhaAtual: SENHA, novaSenha: '123' }, token)).status, 400);
+    assert.equal((await send({ senhaAtual: SENHA, novaSenha: SENHA }, token)).status, 400);
+    assert.equal((await send({ senhaAtual: SENHA }, token)).status, 400);
+    assert.equal((await send({ senhaAtual: { $ne: '' }, novaSenha: 'senha-nova' }, token)).status, 400);
+    assert.equal((await send({ senhaAtual: SENHA, novaSenha: 'senha-nova' })).status, 401);
+    assert.equal((await api('GET', '/auth/me', token)).status, 200);
+  });
+});
+
+describe('foto de perfil', () => {
+  const sendAvatar = async (token: string | undefined, data: Buffer = PNG): Promise<ApiResult> => {
+    const form = new FormData();
+    form.append('foto', new Blob([new Uint8Array(data)], { type: 'image/png' }), 'foto.png');
+    const response = await fetch(`${origin}/api/auth/avatar`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const json: any = await response.json();
+    if (response.status === 200) uploaded.push(json.dados.avatarUrl);
+    return { status: response.status, json };
+  };
+
+  it('envia, troca apagando a anterior e remove', async () => {
+    const { token, id } = await newUser();
+    const sent = (await sendAvatar(token)).json.dados;
+    const first = sent.avatarUrl;
+    assert.equal(sent.senha, undefined);
+    assert.match(first, new RegExp(`^/uploads/avatars/${id}-`));
+    assert.equal((await fetch(`${origin}${first}`)).status, 200);
+
+    const second = (await sendAvatar(token)).json.dados.avatarUrl;
+    assert.notEqual(second, first);
+    assert.equal((await fetch(`${origin}${first}`)).status, 404);
+    assert.equal((await api('GET', `/auth/profile/${id}`)).json.dados.avatarUrl, second);
+
+    const removed = await api('DELETE', '/auth/avatar', token);
+    assert.equal(removed.status, 200);
+    assert.equal(removed.json.dados.avatarUrl, '');
+    assert.equal((await fetch(`${origin}${second}`)).status, 404);
+  });
+
+  it('recusa arquivo que não é imagem, grande demais ou sem login', async () => {
+    const { token } = await newUser();
+    assert.equal((await sendAvatar(token, Buffer.from('<svg/>'))).status, 400);
+    assert.equal((await sendAvatar(token, Buffer.concat([PNG, Buffer.alloc(6 * 1024 * 1024)]))).status, 400);
+    assert.equal((await sendAvatar(undefined)).status, 401);
+    assert.equal((await api('DELETE', '/auth/avatar')).status, 401);
+  });
+
+  it('o link da foto não pode ser definido pelo perfil nem pelo cadastro', async () => {
+    const { token, id } = await newUser();
+    await api('PUT', '/auth/profile', token, { avatarUrl: 'https://exemplo.com/rastreador.png' });
+    assert.equal((await api('GET', `/auth/profile/${id}`)).json.dados.avatarUrl, '');
+
+    const created = await api('POST', '/auth/register', undefined, {
+      nome: 'Com link',
+      email: 'com-link@teste.com',
+      senha: 'senha-de-teste',
+      avatarUrl: 'https://exemplo.com/rastreador.png',
+    });
+    assert.equal(created.json.dados.avatarUrl, '');
+  });
 });
 
 describe('autenticação', () => {
@@ -419,22 +519,87 @@ describe('cadastro de provas', () => {
     assert.equal((await api('PUT', `/races/${race._id}`, owner.token, { distancias: [] })).status, 400);
   });
 
-  it('editar as distâncias preserva o percurso das que continuam', async () => {
-    const owner = await newUser('organizador');
-    const race = (await api('POST', '/races', owner.token, {
-      ...RACE,
-      distancias: [
-        { distanciaKm: 5, rotaGeoJSON: { type: 'LineString', coordinates: [[-49, -6], [-49.1, -6.1]] } },
-        { distanciaKm: 10 },
-      ],
-    })).json.dados;
-    const { json } = await api('PUT', `/races/${race._id}`, owner.token, {
-      distancias: [{ distanciaKm: 5, altimetria: 40 }, { distanciaKm: 21 }],
+  describe('percurso', () => {
+    const PERCURSO = {
+      pontos: [{ lat: -6, lng: -49 }, { lat: -6.1, lng: -49.1 }],
+      trechos: [{ coordenadas: [[-49, -6, 200], [-49.1, -6.1, 210]], subidaM: 10 }],
+    };
+    const newRace = async (token: string) =>
+      (await api('POST', '/races', token, { ...RACE, distancias: [{ distanciaKm: 5 }, { distanciaKm: 10 }] })).json.dados;
+    const path = (id: string, km: number | string = 5) => `/races/${id}/distancias/${km}/percurso`;
+    const of = (race: any, km: number) => race.distancias.find((d: any) => d.distanciaKm === km);
+
+    it('salva calculando a distância e só aparece ao abrir a prova', async () => {
+      const owner = await newUser('organizador');
+      const race = await newRace(owner.token);
+      const saved = await api('PUT', path(race._id), owner.token, { ...PERCURSO, distanciaM: 1, temLinhaReta: true });
+      assert.equal(saved.status, 200);
+      assert.ok(of(saved.json.dados, 5).percurso.distanciaM > 10000);
+      assert.equal(of(saved.json.dados, 5).percurso.subidaM, 10);
+      assert.equal(of(saved.json.dados, 5).percurso.temLinhaReta, false);
+
+      const opened = (await api('GET', `/races/${race._id}`)).json.dados;
+      assert.equal(of(opened, 5).percurso.pontos.length, 2);
+      assert.equal(of(opened, 10).percurso, undefined);
+
+      const listed = (await api('GET', '/races?limit=60')).json.dados.find((r: any) => r._id === race._id);
+      assert.equal(of(listed, 5).percurso, undefined);
+      const mine = (await api('GET', '/races/mine', owner.token)).json.dados.find((r: any) => r._id === race._id);
+      assert.equal(of(mine, 5).percurso, undefined);
     });
-    const five = json.dados.distancias.find((d: any) => d.distanciaKm === 5);
-    assert.equal(five.altimetria, 40);
-    assert.equal(five.rotaGeoJSON.coordinates.length, 2);
-    assert.deepEqual(json.dados.distancias.map((d: any) => d.distanciaKm), [5, 21]);
+
+    it('editar as distâncias preserva o percurso das que continuam', async () => {
+      const owner = await newUser('organizador');
+      const race = await newRace(owner.token);
+      await api('PUT', path(race._id), owner.token, PERCURSO);
+      const { json } = await api('PUT', `/races/${race._id}`, owner.token, {
+        distancias: [{ distanciaKm: 5, altimetria: 40 }, { distanciaKm: 21 }],
+      });
+      assert.equal(of(json.dados, 5).altimetria, 40);
+      assert.equal(of(json.dados, 5).percurso.pontos.length, 2);
+      assert.deepEqual(json.dados.distancias.map((d: any) => d.distanciaKm), [5, 21]);
+    });
+
+    it('não aceita percurso sem validação pelos dados da prova', async () => {
+      const owner = await newUser('organizador');
+      const invalido = { pontos: 'x' };
+      const created = await api('POST', '/races', owner.token, {
+        ...RACE,
+        distancias: [{ distanciaKm: 5, percurso: invalido }],
+      });
+      assert.equal(created.status, 201);
+      assert.equal(of(created.json.dados, 5).percurso, undefined);
+      const updated = await api('PUT', `/races/${created.json.dados._id}`, owner.token, {
+        distancias: [{ distanciaKm: 5, percurso: invalido }],
+      });
+      assert.equal(updated.status, 200);
+      assert.equal(of(updated.json.dados, 5).percurso, undefined);
+    });
+
+    it('remove o percurso', async () => {
+      const owner = await newUser('organizador');
+      const race = await newRace(owner.token);
+      await api('PUT', path(race._id), owner.token, PERCURSO);
+      const removed = await api('DELETE', path(race._id), owner.token);
+      assert.equal(removed.status, 200);
+      assert.equal(of((await api('GET', `/races/${race._id}`)).json.dados, 5).percurso, undefined);
+    });
+
+    it('recusa quem não gerencia a prova, distância inexistente e traçado inválido', async () => {
+      const owner = await newUser('organizador');
+      const other = await newUser('organizador');
+      const athlete = await newUser();
+      const race = await newRace(owner.token);
+
+      assert.equal((await api('PUT', path(race._id), undefined, PERCURSO)).status, 401);
+      assert.equal((await api('PUT', path(race._id), athlete.token, PERCURSO)).status, 403);
+      assert.equal((await api('PUT', path(race._id), other.token, PERCURSO)).status, 403);
+      assert.equal((await api('DELETE', path(race._id), other.token)).status, 403);
+      assert.equal((await api('PUT', path(race._id, 42), owner.token, PERCURSO)).status, 404);
+      assert.equal((await api('PUT', path(race._id, 'x'), owner.token, PERCURSO)).status, 404);
+      assert.equal((await api('PUT', path('000000000000000000000000'), owner.token, PERCURSO)).status, 404);
+      assert.equal((await api('PUT', path(race._id), owner.token, { ...PERCURSO, trechos: [] })).status, 400);
+    });
   });
 
   it('valida a capa, troca e apaga o arquivo antigo', async () => {
@@ -487,6 +652,73 @@ describe('notícias', () => {
     assert.equal(created.status, 201);
     assert.equal((await api('GET', `/news/${created.json.dados._id}`)).json.dados.titulo, 'Título');
     assert.equal((await api('GET', '/news?categoria=Aviso')).json.dados.length >= 1, true);
+  });
+
+  describe('edição e exclusão', () => {
+    const BODY = { titulo: 'Título', conteudo: 'Texto', categoria: 'Aviso' };
+
+    it('quem publicou edita só os campos permitidos', async () => {
+      const owner = await newUser('organizador');
+      const created = (await api('POST', '/news', owner.token, BODY)).json.dados;
+      assert.equal(created.criadoPor, owner.id);
+
+      const updated = await api('PUT', `/news/${created._id}`, owner.token, {
+        titulo: 'Novo título',
+        destaque: true,
+        autor: 'Outra pessoa',
+        criadoPor: '000000000000000000000000',
+        linkOriginal: 'https://exemplo.com/forjado',
+      });
+      assert.equal(updated.status, 200);
+      assert.equal(updated.json.dados.titulo, 'Novo título');
+      assert.equal(updated.json.dados.conteudo, 'Texto');
+      assert.equal(updated.json.dados.destaque, true);
+      assert.equal(updated.json.dados.autor, created.autor);
+      assert.equal(updated.json.dados.criadoPor, owner.id);
+      assert.equal(updated.json.dados.linkOriginal, undefined);
+    });
+
+    it('recusa dados inválidos', async () => {
+      const owner = await newUser('organizador');
+      const { _id } = (await api('POST', '/news', owner.token, BODY)).json.dados;
+      assert.equal((await api('PUT', `/news/${_id}`, owner.token, { titulo: '   ' })).status, 400);
+      assert.equal((await api('PUT', `/news/${_id}`, owner.token, { conteudo: 7 })).status, 400);
+      assert.equal((await api('PUT', `/news/${_id}`, owner.token, { categoria: 'Inexistente' })).status, 400);
+    });
+
+    it('só quem publicou ou um admin altera', async () => {
+      const owner = await newUser('organizador');
+      const other = await newUser('organizador');
+      const athlete = await newUser();
+      const admin = await newAdmin();
+      const { _id } = (await api('POST', '/news', owner.token, BODY)).json.dados;
+
+      assert.equal((await api('PUT', `/news/${_id}`, undefined, BODY)).status, 401);
+      assert.equal((await api('PUT', `/news/${_id}`, athlete.token, BODY)).status, 403);
+      assert.equal((await api('PUT', `/news/${_id}`, other.token, BODY)).status, 403);
+      assert.equal((await api('DELETE', `/news/${_id}`, other.token)).status, 403);
+      assert.equal((await api('PUT', `/news/${_id}`, admin.token, { titulo: 'Corrigido' })).status, 200);
+
+      assert.equal((await api('DELETE', `/news/${_id}`, owner.token)).status, 200);
+      assert.equal((await api('GET', `/news/${_id}`)).status, 404);
+      assert.equal((await api('DELETE', `/news/${_id}`, owner.token)).status, 404);
+    });
+
+    it('notícia antiga, sem dono, só o admin altera; matéria externa nem o admin', async () => {
+      const organizer = await newUser('organizador');
+      const admin = await newAdmin();
+      const old = await News.create({ titulo: 'Antiga', conteudo: 'Texto' });
+      assert.equal((await api('PUT', `/news/${old._id}`, organizer.token, { titulo: 'X' })).status, 403);
+      assert.equal((await api('PUT', `/news/${old._id}`, admin.token, { titulo: 'X' })).status, 200);
+
+      const external = await News.create({
+        titulo: 'Externa',
+        conteudo: 'Resumo',
+        linkOriginal: `https://exemplo.com/${old._id}`,
+      });
+      assert.equal((await api('PUT', `/news/${external._id}`, admin.token, { titulo: 'X' })).status, 403);
+      assert.equal((await api('DELETE', `/news/${external._id}`, admin.token)).status, 403);
+    });
   });
 });
 
@@ -999,6 +1231,87 @@ describe('rotas', () => {
       assert.equal((await api('GET', `/routes/${_id}`, token)).status, 404);
       assert.equal((await api('GET', '/routes/id-invalido', token)).status, 404);
     });
+  });
+});
+
+describe('edição de treino', () => {
+  const stats = async (token: string) => (await api('GET', '/auth/me', token)).json.dados.estatisticas;
+
+  it('recalcula tempo, pace e só a diferença nos totais', async () => {
+    const { token } = await newUser();
+    const { _id } = (await api('POST', '/workouts', token, WORKOUT)).json.dados;
+    await api('POST', '/workouts', token, WORKOUT);
+
+    const updated = await api('PUT', `/workouts/${_id}`, token, { distanciaKm: 5, duracaoSegundos: 1800, titulo: ' Novo ' });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.json.dados.titulo, 'Novo');
+    assert.equal(updated.json.dados.tempoFormatado, '00:30:00');
+    assert.equal(updated.json.dados.paceMedio, '06:00 min/km');
+    assert.equal(updated.json.dados.atleta.nome !== undefined, true);
+
+    const totals = await stats(token);
+    assert.equal(totals.totalKm, 15);
+    assert.equal(totals.tempoTotalSegundos, 4800);
+    assert.equal(totals.totalTreinos, 2);
+  });
+
+  it('mantém o que não foi enviado, curtidas e comentários', async () => {
+    const owner = await newUser();
+    const fan = await newUser();
+    const { _id } = (await api('POST', '/workouts', owner.token, { ...WORKOUT, descricao: 'Boa' })).json.dados;
+    await api('POST', `/workouts/${_id}/like`, fan.token);
+    await api('POST', `/workouts/${_id}/comments`, fan.token, { texto: 'Parabéns' });
+
+    const { json } = await api('PUT', `/workouts/${_id}`, owner.token, { titulo: 'Outro', curtidas: [], atleta: fan.id });
+    assert.equal(json.dados.descricao, 'Boa');
+    assert.equal(json.dados.distanciaKm, 10);
+    assert.equal(json.dados.curtidas.length, 1);
+    assert.equal(json.dados.comentarios[0].autor.nome !== undefined, true);
+    assert.equal(json.dados.atleta._id, owner.id);
+    assert.equal((await stats(owner.token)).totalKm, 10);
+  });
+
+  it('só quem publicou edita; nem o admin altera o treino de outra pessoa', async () => {
+    const owner = await newUser();
+    const other = await newUser();
+    const admin = await newAdmin();
+    const { _id } = (await api('POST', '/workouts', owner.token, WORKOUT)).json.dados;
+    assert.equal((await api('PUT', `/workouts/${_id}`, undefined, WORKOUT)).status, 401);
+    assert.equal((await api('PUT', `/workouts/${_id}`, other.token, WORKOUT)).status, 403);
+    assert.equal((await api('PUT', `/workouts/${_id}`, admin.token, WORKOUT)).status, 403);
+    assert.equal((await api('PUT', '/workouts/000000000000000000000000', owner.token, WORKOUT)).status, 404);
+  });
+
+  it('recusa dados inválidos sem mexer nos totais', async () => {
+    const { token } = await newUser();
+    const { _id } = (await api('POST', '/workouts', token, WORKOUT)).json.dados;
+    const invalid = [
+      { titulo: '   ' },
+      { distanciaKm: 0 },
+      { distanciaKm: 'abc' },
+      { duracaoSegundos: 0 },
+      { altimetria: -1 },
+      { dataTreino: 'ontem' },
+      { tipoTreino: 'voo' },
+      { sensacaoEsforco: 'nenhum' },
+      { fotos: 'x' },
+      { fotos: ['https://exemplo.com/a.png'] },
+    ];
+    for (const body of invalid) {
+      assert.equal((await api('PUT', `/workouts/${_id}`, token, body)).status, 400, JSON.stringify(body));
+    }
+    assert.equal((await stats(token)).totalKm, 10);
+  });
+
+  it('troca as fotos e apaga do disco só as que saíram', async () => {
+    const { token } = await newUser();
+    const [first, second] = (await upload(token, [[PNG, 'a.png', 'image/png'], [PNG, 'b.png', 'image/png']])).json.dados;
+    const { _id } = (await api('POST', '/workouts', token, { ...WORKOUT, fotos: [first, second] })).json.dados;
+
+    const { json } = await api('PUT', `/workouts/${_id}`, token, { fotos: [second] });
+    assert.deepEqual(json.dados.fotos, [second]);
+    assert.equal((await fetch(`${origin}${first}`)).status, 404);
+    assert.equal((await fetch(`${origin}${second}`)).status, 200);
   });
 });
 

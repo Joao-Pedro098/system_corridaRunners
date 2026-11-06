@@ -8,6 +8,7 @@ import {
   addComment,
   deleteComment,
   deleteWorkout,
+  updateWorkout,
   uploadWorkoutPhotos,
 } from '../controllers/workoutController';
 import { protect } from '../middlewares/authMiddleware';
@@ -39,6 +40,9 @@ router.post('/:id/comments', protect, validateObjectId('id'), addComment);
 
 // Excluir comentário
 router.delete('/:id/comments/:commentId', protect, validateObjectId('id', 'commentId'), deleteComment);
+
+// Editar treino
+router.put('/:id', protect, validateObjectId('id'), updateWorkout);
 
 // Excluir treino
 router.delete('/:id', protect, validateObjectId('id'), deleteWorkout);

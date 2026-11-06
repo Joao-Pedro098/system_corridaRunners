@@ -415,6 +415,100 @@ export const deleteComment = async (req: AuthenticatedRequest, res: Response): P
   }
 };
 
+// Confere só o que veio no pedido e devolve uma mensagem que o atleta entenda.
+const validateWorkoutChanges = (body: any): string | null => {
+  const isNumberFrom = (value: unknown, min: number) => Number.isFinite(Number(value)) && Number(value) >= min;
+
+  if ('titulo' in body && (typeof body.titulo !== 'string' || !body.titulo.trim())) return 'Dê um título ao treino.';
+  if ('descricao' in body && typeof body.descricao !== 'string') return 'Descrição inválida.';
+  if ('distanciaKm' in body && !isNumberFrom(body.distanciaKm, 0.1)) return 'Informe uma distância válida.';
+  if ('duracaoSegundos' in body && !isNumberFrom(body.duracaoSegundos, 1)) return 'Informe o tempo do treino.';
+  if ('altimetria' in body && !isNumberFrom(body.altimetria, 0)) return 'A elevação não pode ser negativa.';
+  if ('dataTreino' in body && Number.isNaN(new Date(body.dataTreino).getTime())) return 'Informe uma data válida.';
+  return null;
+};
+
+// @desc    Editar um treino e ajustar os totais do atleta
+// @route   PUT /api/workouts/:id
+// @access  Privado (apenas quem publicou)
+export const updateWorkout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ sucesso: false, mensagem: 'Não autorizado.' });
+      return;
+    }
+
+    const treino = await WorkoutPost.findById(req.params.id);
+    if (!treino) {
+      res.status(404).json({ sucesso: false, mensagem: 'Treino não encontrado.' });
+      return;
+    }
+    if (treino.atleta.toString() !== req.user._id.toString()) {
+      res.status(403).json({ sucesso: false, mensagem: 'Só quem publicou pode editar este treino.' });
+      return;
+    }
+
+    const body = req.body ?? {};
+    const erro = validateWorkoutChanges(body);
+    if (erro) {
+      res.status(400).json({ sucesso: false, mensagem: erro });
+      return;
+    }
+
+    const fotosAntigas = [...treino.fotos];
+    if ('fotos' in body) {
+      if (!Array.isArray(body.fotos) || body.fotos.length > MAX_WORKOUT_PHOTOS) {
+        res.status(400).json({ sucesso: false, mensagem: `Envie no máximo ${MAX_WORKOUT_PHOTOS} fotos por treino.` });
+        return;
+      }
+      const userId = req.user._id.toString();
+      if (!body.fotos.every((foto: unknown) => fotosAntigas.includes(foto as string) || isOwnPhotoPath(foto, userId))) {
+        res.status(400).json({ sucesso: false, mensagem: 'Foto inválida.' });
+        return;
+      }
+      treino.fotos = body.fotos;
+    }
+
+    const kmAntigo = treino.distanciaKm;
+    const segundosAntigos = treino.duracaoSegundos;
+
+    if ('titulo' in body) treino.titulo = body.titulo.trim();
+    if ('descricao' in body) treino.descricao = body.descricao.trim();
+    if ('tipoTreino' in body) treino.tipoTreino = body.tipoTreino;
+    if ('sensacaoEsforco' in body) treino.sensacaoEsforco = body.sensacaoEsforco;
+    if ('altimetria' in body) treino.altimetria = Number(body.altimetria);
+    if ('dataTreino' in body) treino.dataTreino = new Date(body.dataTreino);
+    if ('distanciaKm' in body) treino.distanciaKm = Number(body.distanciaKm);
+    if ('duracaoSegundos' in body) treino.duracaoSegundos = Number(body.duracaoSegundos);
+    treino.tempoFormatado = formatarTempo(treino.duracaoSegundos);
+    treino.paceMedio = calcularPace(treino.distanciaKm, treino.duracaoSegundos);
+
+    await treino.save();
+
+    // Soma só a diferença: curtidas e comentários não mudam os totais.
+    await User.findByIdAndUpdate(req.user._id, {
+      $inc: {
+        'estatisticas.totalKm': treino.distanciaKm - kmAntigo,
+        'estatisticas.tempoTotalSegundos': treino.duracaoSegundos - segundosAntigos,
+      },
+    });
+    await removePhotos(fotosAntigas.filter((foto) => !treino.fotos.includes(foto)));
+
+    const atualizado = await WorkoutPost.findById(treino._id)
+      .populate('atleta', 'nome avatarUrl cidade tipo')
+      .populate('comentarios.autor', 'nome avatarUrl');
+
+    res.status(200).json({ sucesso: true, mensagem: 'Treino atualizado!', dados: atualizado });
+  } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      const primeira: any = Object.values(error.errors)[0];
+      res.status(400).json({ sucesso: false, mensagem: primeira?.message || 'Dados inválidos.' });
+      return;
+    }
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao atualizar treino.' });
+  }
+};
+
 // @desc    Excluir um treino
 // @route   DELETE /api/workouts/:id
 // @access  Privado (apenas o autor ou admin)

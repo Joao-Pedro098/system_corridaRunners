@@ -1,6 +1,7 @@
 import mongoose, { Schema } from 'mongoose';
 import { IRace } from '../types';
 import { isOptionalHttpUrl } from '../utils/http';
+import { routeShapeSchema } from './SavedRoute';
 
 const linkRule = { validator: isOptionalHttpUrl, message: 'Use um link completo, com http ou https.' };
 
@@ -38,13 +39,8 @@ const raceSchema = new Schema<IRace>(
         distanciaKm: { type: Number, required: true }, // Ex: 5, 10, 21, 42
         categoria: { type: String, trim: true },       // Ex: "5km Geral", "Caminhada 3km"
         altimetria: { type: Number, default: 0 },      // Ganho de elevação em metros
-        rotaGeoJSON: {
-          type: {
-            type: String,
-            enum: ['LineString'],
-          },
-          coordinates: [[Number]],
-        },
+        // Fica de fora das listagens: só é lido ao abrir a prova.
+        percurso: { type: routeShapeSchema, default: undefined },
         arquivoPercursoUrl: { type: String, trim: true },
       },
     ],

@@ -50,14 +50,17 @@ class WorkoutModel {
   /// Valores de `sensacaoEsforco` no backend, do nível 1 ao 5.
   static const efforts = ['muito_facil', 'facil', 'moderado', 'dificil', 'exaustivo'];
 
-  final String id, titulo, descricao, tipoTreino, tempoFormatado, paceMedio, sensacaoEsforco;
+  final String id;
   final AthleteRef atleta;
-  final double distanciaKm;
-  final int duracaoSegundos, altimetria;
-  final List<String> fotos;
   final List<String> curtidas;
   final List<WorkoutComment> comentarios;
-  final DateTime dataTreino;
+
+  // Editáveis: listas e telas abertas guardam este mesmo objeto.
+  String titulo, descricao, tipoTreino, tempoFormatado, paceMedio, sensacaoEsforco;
+  double distanciaKm;
+  int duracaoSegundos, altimetria;
+  List<String> fotos;
+  DateTime dataTreino;
 
   WorkoutModel({
     required this.id,
@@ -96,6 +99,21 @@ class WorkoutModel {
         .toList(),
     dataTreino: DateTime.tryParse(json['dataTreino'] as String? ?? '') ?? DateTime.now(),
   );
+
+  /// Traz os dados que o atleta pode editar.
+  void applyEdit(WorkoutModel other) {
+    titulo = other.titulo;
+    descricao = other.descricao;
+    tipoTreino = other.tipoTreino;
+    tempoFormatado = other.tempoFormatado;
+    paceMedio = other.paceMedio;
+    sensacaoEsforco = other.sensacaoEsforco;
+    distanciaKm = other.distanciaKm;
+    duracaoSegundos = other.duracaoSegundos;
+    altimetria = other.altimetria;
+    fotos = other.fotos;
+    dataTreino = other.dataTreino;
+  }
 
   /// Fotos com o link completo, prontas para exibir.
   List<String> get photoUrls => fotos.map(ApiConstants.mediaUrl).toList();

@@ -44,6 +44,16 @@ export const protect = async (
       return;
     }
 
+    // Trocar a senha encerra as sessões abertas em outros aparelhos.
+    const alteradaEm = user.senhaAlteradaEm?.getTime();
+    if (alteradaEm && decoded.iat < Math.floor(alteradaEm / 1000)) {
+      res.status(401).json({
+        sucesso: false,
+        mensagem: 'Sua senha foi alterada. Entre novamente.',
+      });
+      return;
+    }
+
     req.user = user;
     next();
   } catch (error) {

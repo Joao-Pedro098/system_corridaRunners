@@ -11,7 +11,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 // basta trocar savePhoto, removePhotos e o formato validado em isOwnPhotoPath.
 export const UPLOAD_ROOT = path.resolve(__dirname, '../../uploads');
 
-type PhotoFolder = 'workouts' | 'races';
+type PhotoFolder = 'workouts' | 'races' | 'avatars';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -36,25 +36,30 @@ export const receiveWorkoutPhotos = (req: Request, res: Response, next: NextFunc
   });
 };
 
-const coverUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_PHOTO_BYTES, files: 1 },
-}).single('capa');
+// Recebe uma única imagem no campo indicado.
+const receiveSingleImage = (field: string, tooBigMessage: string) => {
+  const single = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_PHOTO_BYTES, files: 1 },
+  }).single(field);
 
-// Recebe a imagem de capa de uma prova.
-export const receiveRaceCover = (req: Request, res: Response, next: NextFunction): void => {
-  coverUpload(req, res, (error: unknown) => {
-    if (!error) {
-      next();
-      return;
-    }
-    const tooBig = error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE';
-    res.status(400).json({
-      sucesso: false,
-      mensagem: tooBig ? 'A capa pode ter no máximo 5 MB.' : 'Não foi possível receber a imagem.',
+  return (req: Request, res: Response, next: NextFunction): void => {
+    single(req, res, (error: unknown) => {
+      if (!error) {
+        next();
+        return;
+      }
+      const tooBig = error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE';
+      res.status(400).json({
+        sucesso: false,
+        mensagem: tooBig ? tooBigMessage : 'Não foi possível receber a imagem.',
+      });
     });
-  });
+  };
 };
+
+export const receiveRaceCover = receiveSingleImage('capa', 'A capa pode ter no máximo 5 MB.');
+export const receiveAvatar = receiveSingleImage('foto', 'A foto pode ter no máximo 5 MB.');
 
 // Identifica o formato pelo conteúdo do arquivo: o nome e o tipo informados
 // pelo cliente não são confiáveis.
@@ -96,7 +101,7 @@ export const isOwnPhotoPath = (value: unknown, userId: string, folder: PhotoFold
 export const removePhotos = async (paths: string[]): Promise<void> => {
   await Promise.all(
     paths
-      .filter((p) => /^\/uploads\/(workouts|races)\/[0-9a-f]+-[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p))
+      .filter((p) => /^\/uploads\/(workouts|races|avatars)\/[0-9a-f]+-[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p))
       .map((p) => fs.unlink(path.join(UPLOAD_ROOT, p.replace('/uploads/', ''))).catch(() => undefined))
   );
 };

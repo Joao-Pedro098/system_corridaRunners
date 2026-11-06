@@ -68,6 +68,17 @@ class RouteDraft {
 
   RouteDraft({List<LatLng>? points, List<RouteSegment>? segments}) : points = points ?? [], segments = segments ?? [];
 
+  factory RouteDraft.fromJson(Map<String, dynamic> json) => RouteDraft(
+    points: [
+      for (final p in json['pontos'] as List? ?? const [])
+        LatLng(((p as Map)['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
+    ],
+    segments: [for (final s in json['trechos'] as List? ?? const []) RouteSegment.fromJson(s as Map<String, dynamic>)],
+  );
+
+  /// Cópia para editar sem mexer no original.
+  RouteDraft copy() => RouteDraft(points: [...points], segments: [...segments]);
+
   bool get isEmpty => points.isEmpty;
   bool get canSave => segments.isNotEmpty;
   bool get isFull => points.length >= maxPoints;
@@ -98,8 +109,9 @@ class RouteDraft {
     segments.clear();
   }
 
-  Map<String, dynamic> toJson(String name) => {
-    'nome': name,
+  /// O nome só existe nas rotas salvas; o percurso de uma prova não tem.
+  Map<String, dynamic> toJson([String? name]) => {
+    'nome': ?name,
     'pontos': [
       for (final p in points) {'lat': p.latitude, 'lng': p.longitude},
     ],
@@ -174,15 +186,7 @@ class RouteDetail {
   factory RouteDetail.fromJson(Map<String, dynamic> json) => RouteDetail(
     id: json['_id'] as String? ?? '',
     nome: json['nome'] as String? ?? '',
-    draft: RouteDraft(
-      points: [
-        for (final p in json['pontos'] as List? ?? const [])
-          LatLng(((p as Map)['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
-      ],
-      segments: [
-        for (final s in json['trechos'] as List? ?? const []) RouteSegment.fromJson(s as Map<String, dynamic>),
-      ],
-    ),
+    draft: RouteDraft.fromJson(json),
   );
 }
 

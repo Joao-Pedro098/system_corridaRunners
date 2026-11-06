@@ -12,6 +12,7 @@ import '../../../core/widgets/rr_labels.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/workout_model.dart';
+import 'new_workout_screen.dart';
 import 'workout_gallery.dart';
 import 'workout_widgets.dart';
 import 'workouts_provider.dart';
@@ -98,7 +99,16 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
 
     return RRSubPage(
       title: 'Treino',
-      actions: [if (canDelete) RRIconButton('excluir', tooltip: 'Excluir treino', onPressed: _delete)],
+      actions: [
+        // O admin modera excluindo, mas só quem correu altera os números do treino.
+        if (user == workout.atleta.id)
+          RRIconButton(
+            'editar',
+            tooltip: 'Editar treino',
+            onPressed: () => rrPush(context, NewWorkoutScreen(workout: workout)),
+          ),
+        if (canDelete) RRIconButton('excluir', tooltip: 'Excluir treino', onPressed: _delete),
+      ],
       bottom: Row(
         children: [
           Expanded(
@@ -124,7 +134,8 @@ class _WorkoutDetailScreenState extends State<WorkoutDetailScreen> {
           if (workout.photoUrls.isEmpty)
             RouteArt(seed: workout.id, height: 220)
           else
-            WorkoutGallery(photos: workout.photoUrls, heroTag: widget.heroTag),
+            // Outras fotos recomeçam a galeria, que guarda a posição atual.
+            WorkoutGallery(key: ValueKey(workout.fotos.join()), photos: workout.photoUrls, heroTag: widget.heroTag),
           const SizedBox(height: 20),
           WorkoutMetrics(workout),
           const SizedBox(height: 16),

@@ -10,6 +10,7 @@ import '../../../core/widgets/rr_feedback.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/news_model.dart';
+import 'news_form_screen.dart';
 import 'news_widgets.dart';
 
 class NewsDetailScreen extends StatelessWidget {
@@ -41,16 +42,46 @@ class NewsDetailScreen extends StatelessWidget {
     }
   }
 
+  // Editar ou excluir volta à lista, que recarrega com os dados novos.
+  Future<void> _edit(BuildContext context) async {
+    final saved = await rrPush<bool>(context, NewsFormScreen(news: news));
+    if (saved == true && context.mounted) Navigator.pop(context, true);
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final confirmed = await showRRConfirm(
+      context,
+      title: 'Excluir notícia?',
+      text: 'Ela sai do app para todos. Essa ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await NewsService.delete(news.id);
+      if (!context.mounted) return;
+      showRRToast(context, 'Notícia excluída.');
+      Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (context.mounted) showRRToast(context, e.message, error: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.rr;
     final isAdmin = context.select<AuthProvider, bool>((a) => a.user?.tipo == 'admin');
+    final userId = context.select<AuthProvider, String?>((a) => a.user?.id);
     final external = news.isExternal;
+    final canManage = !external && (isAdmin || (userId != null && news.criadoPor == userId));
     final source = news.fonteNome ?? news.autor;
     return RRSubPage(
       title: news.categoria,
       actions: [
         if (isAdmin && external) RRIconButton('excluir', tooltip: 'Ocultar matéria', onPressed: () => _hide(context)),
+        if (canManage) ...[
+          RRIconButton('editar', tooltip: 'Editar notícia', onPressed: () => _edit(context)),
+          RRIconButton('excluir', tooltip: 'Excluir notícia', onPressed: () => _delete(context)),
+        ],
       ],
       bottom: external
           ? RRButton(

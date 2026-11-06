@@ -15,6 +15,7 @@ import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/race_model.dart';
 import 'race_form_screen.dart';
+import 'race_route_section.dart';
 import 'race_widgets.dart';
 
 class RaceDetailScreen extends StatefulWidget {
@@ -216,6 +217,7 @@ class _RaceDetailScreenState extends State<RaceDetailScreen> {
                             link(race.resultadosUrl, 'Resultados', 'Ver resultados do chip', 'tempo'),
                             link(race.fotosUrl, 'Galeria', 'Ver fotos da prova', 'link'),
                             link(race.certificadoUrl, 'Certificado', 'Baixar certificado', 'recorde'),
+                            RaceRouteSection(race: race, canManage: canManage),
                             if (race.descricao != null && race.descricao!.isNotEmpty) ...[
                               const SizedBox(height: 20),
                               const RRSectionHead('Sobre a prova'),

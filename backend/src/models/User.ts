@@ -23,6 +23,10 @@ const userSchema = new Schema<IUser>(
       minlength: [6, 'A senha deve ter pelo menos 6 caracteres'],
       select: false,
     },
+    // Tokens emitidos antes desta data deixam de valer.
+    senhaAlteradaEm: {
+      type: Date,
+    },
     tipo: {
       type: String,
       enum: ['atleta', 'organizador', 'admin'],

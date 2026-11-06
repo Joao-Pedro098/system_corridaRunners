@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/rr_theme.dart';
+import '../../routes/data/route_model.dart';
 
 class RaceDistance {
   final num km;
@@ -177,6 +178,22 @@ class RaceService {
       RaceModel.fromJson((await ApiClient.put('${ApiConstants.races}/$id', body))['dados'] as Map<String, dynamic>);
 
   static Future<void> delete(String id) => ApiClient.delete('${ApiConstants.races}/$id');
+
+  /// Percursos da prova por distância. As listagens não trazem o traçado.
+  static Future<Map<num, RouteDraft>> routes(String id) async {
+    final race = (await ApiClient.get('${ApiConstants.races}/$id'))['dados'] as Map<String, dynamic>;
+    return {
+      for (final d in (race['distancias'] as List? ?? const []).cast<Map<String, dynamic>>())
+        if (d['percurso'] != null) d['distanciaKm'] as num: RouteDraft.fromJson(d['percurso'] as Map<String, dynamic>),
+    };
+  }
+
+  static String _routeUrl(String id, num km) => '${ApiConstants.races}/$id/distancias/$km/percurso';
+
+  static Future<void> saveRoute(String id, num km, RouteDraft draft) =>
+      ApiClient.put(_routeUrl(id, km), draft.toJson());
+
+  static Future<void> removeRoute(String id, num km) => ApiClient.delete(_routeUrl(id, km));
 
   /// Provas cadastradas pelo organizador logado.
   static Future<List<RaceModel>> mine() async {

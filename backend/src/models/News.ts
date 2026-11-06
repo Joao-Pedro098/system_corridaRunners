@@ -30,6 +30,11 @@ const newsSchema = new Schema<INews>(
       default: 'Comunidade de Corridas',
       trim: true,
     },
+    // Quem publicou: só essa pessoa ou um admin pode alterar. Vazio em notícias antigas e externas.
+    criadoPor: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     destaque: {
       type: Boolean,
       default: false,

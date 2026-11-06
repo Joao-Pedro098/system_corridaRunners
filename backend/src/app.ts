@@ -8,8 +8,8 @@ const app: Application = express();
 
 // Configurações de Middleware
 app.use(cors());
-// Uma rota salva carrega todo o traçado, bem maior que os demais pedidos.
-app.use('/api/routes', express.json({ limit: '2mb' }));
+// Rotas e percursos carregam todo o traçado, bem maior que os demais pedidos.
+app.use(['/api/routes', '/api/races'], express.json({ limit: '2mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

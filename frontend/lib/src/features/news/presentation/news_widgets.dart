@@ -49,13 +49,13 @@ class NewsCover extends StatelessWidget {
 class NewsCard extends StatelessWidget {
   final NewsModel news;
 
-  /// Chamado quando o admin oculta a matéria na tela de detalhe.
-  final VoidCallback? onHidden;
-  const NewsCard({super.key, required this.news, this.onHidden});
+  /// Chamado quando a notícia é editada, excluída ou ocultada na tela de detalhe.
+  final VoidCallback? onChanged;
+  const NewsCard({super.key, required this.news, this.onChanged});
 
   Future<void> _open(BuildContext context) async {
-    final hidden = await rrPush<bool>(context, NewsDetailScreen(news: news));
-    if (hidden == true) onHidden?.call();
+    final changed = await rrPush<bool>(context, NewsDetailScreen(news: news));
+    if (changed == true) onChanged?.call();
   }
 
   @override

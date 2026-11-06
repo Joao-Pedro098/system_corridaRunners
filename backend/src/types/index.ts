@@ -26,6 +26,7 @@ export interface IUser extends Document {
   cidade?: string;
   estado?: string;
   avatarUrl?: string;
+  senhaAlteradaEm?: Date;
   bio?: string;
   recordesPessoais: IPersonalRecords;
   estatisticas: IUserStatistics;
@@ -79,10 +80,20 @@ export interface IWorkoutPost extends Document {
   updatedAt: Date;
 }
 
+/** Traçado desenhado no mapa: N pontos ligados por N-1 trechos. */
+export interface IRouteShape {
+  pontos: { lat: number; lng: number }[];
+  trechos: { coordenadas: number[][]; subidaM: number; emLinhaReta: boolean }[];
+  distanciaM: number;
+  subidaM: number;
+  temLinhaReta: boolean;
+}
+
 export interface IRaceDistance {
   distanciaKm: number;
   categoria?: string; // Ex: "5km Geral", "Caminhada 3km"
   altimetria?: number; // em metros
+  percurso?: IRouteShape;
   arquivoPercursoUrl?: string;
 }
 
@@ -158,6 +169,7 @@ export interface INews extends Document {
   categoria: NewsCategory;
   imagemUrl?: string;
   autor: string;
+  criadoPor?: Types.ObjectId;
   destaque: boolean;
   linkOriginal?: string;
   fonteId?: string;
@@ -168,14 +180,9 @@ export interface INews extends Document {
   updatedAt: Date;
 }
 
-export interface ISavedRoute extends Document {
+export interface ISavedRoute extends Document, IRouteShape {
   dono: Types.ObjectId;
   nome: string;
-  pontos: { lat: number; lng: number }[];
-  trechos: { coordenadas: number[][]; subidaM: number; emLinhaReta: boolean }[];
-  distanciaM: number;
-  subidaM: number;
-  temLinhaReta: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

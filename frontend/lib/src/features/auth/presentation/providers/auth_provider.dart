@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
@@ -50,6 +51,18 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> body) async {
     _user = await _authService.updateProfile(body);
+    notifyListeners();
+  }
+
+  Future<void> changePassword(String current, String next) => _authService.changePassword(current, next);
+
+  Future<void> uploadAvatar(XFile file) async {
+    _user = await _authService.uploadAvatar(file);
+    notifyListeners();
+  }
+
+  Future<void> removeAvatar() async {
+    _user = await _authService.removeAvatar();
     notifyListeners();
   }
 

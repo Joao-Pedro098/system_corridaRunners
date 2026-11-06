@@ -25,6 +25,8 @@ class ApiConstants {
   static String get register => '$baseUrl/auth/register';
   static String get me => '$baseUrl/auth/me';
   static String get profile => '$baseUrl/auth/profile';
+  static String get password => '$baseUrl/auth/password';
+  static String get avatar => '$baseUrl/auth/avatar';
 
   // Endpoints de Treinos / Comunidade
   static String get workoutsFeed => '$baseUrl/workouts/feed';

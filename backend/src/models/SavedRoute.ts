@@ -13,16 +13,23 @@ const segmentSchema = new Schema(
   { _id: false }
 );
 
+const routeShapeFields = {
+  pontos: { type: [pointSchema], required: true },
+  trechos: { type: [segmentSchema], required: true },
+  distanciaM: { type: Number, required: true },
+  subidaM: { type: Number, default: 0 },
+  temLinhaReta: { type: Boolean, default: false },
+};
+
+/** Traçado guardado dentro de outro documento, como o percurso de uma prova. */
+export const routeShapeSchema = new Schema(routeShapeFields, { _id: false });
+
 /** Rota planejada no mapa. É sempre privada: só o dono consegue ver. */
 const savedRouteSchema = new Schema<ISavedRoute>(
   {
     dono: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     nome: { type: String, required: true, trim: true },
-    pontos: { type: [pointSchema], required: true },
-    trechos: { type: [segmentSchema], required: true },
-    distanciaM: { type: Number, required: true },
-    subidaM: { type: Number, default: 0 },
-    temLinhaReta: { type: Boolean, default: false },
+    ...routeShapeFields,
   },
   { timestamps: true }
 );

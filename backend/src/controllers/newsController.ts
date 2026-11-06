@@ -4,7 +4,10 @@ import { News } from '../models/News';
 import { NewsSource } from '../models/NewsSource';
 import { syncNewsSources } from '../services/newsSyncService';
 import { AuthenticatedRequest } from '../types';
-import { parsePagination } from '../utils/http';
+import { parsePagination, pick } from '../utils/http';
+
+// Campos que quem publica pode alterar. Autor e dados da fonte nunca vêm do cliente.
+const NEWS_FIELDS = ['titulo', 'subtitulo', 'conteudo', 'categoria', 'imagemUrl', 'destaque'] as const;
 
 const disabledSources = (): Promise<string[]> => NewsSource.find({ ativa: false }).distinct('fonteId');
 
@@ -97,6 +100,7 @@ export const createNews = async (req: AuthenticatedRequest, res: Response): Prom
       imagemUrl,
       destaque: destaque || false,
       autor: req.user?.nome || 'Comunidade de Corridas',
+      criadoPor: req.user?._id,
     });
 
     res.status(201).json({
@@ -109,6 +113,67 @@ export const createNews = async (req: AuthenticatedRequest, res: Response): Prom
       sucesso: false,
       mensagem: error.message || 'Erro ao publicar notícia.',
     });
+  }
+};
+
+// Acha a notícia que a pessoa pode alterar; se não puder seguir, já responde.
+const findManagedNews = async (req: AuthenticatedRequest, res: Response) => {
+  const noticia = await News.findById(req.params.id);
+  if (!noticia) {
+    res.status(404).json({ sucesso: false, mensagem: 'Notícia não encontrada.' });
+    return null;
+  }
+  // Uma matéria externa apagada voltaria na próxima busca: ela só pode ser ocultada.
+  if (noticia.linkOriginal) {
+    res.status(403).json({ sucesso: false, mensagem: 'Matérias de outros sites só podem ser ocultadas.' });
+    return null;
+  }
+  const isOwner = noticia.criadoPor?.toString() === req.user?._id.toString();
+  if (req.user?.tipo !== 'admin' && !isOwner) {
+    res.status(403).json({ sucesso: false, mensagem: 'Sem permissão para alterar esta notícia.' });
+    return null;
+  }
+  return noticia;
+};
+
+// @desc    Editar uma notícia
+// @route   PUT /api/news/:id
+// @access  Privado (quem publicou ou Admin)
+export const updateNews = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const noticia = await findManagedNews(req, res);
+    if (!noticia) return;
+
+    const alteracoes: any = pick(req.body ?? {}, NEWS_FIELDS);
+    for (const campo of ['titulo', 'conteudo']) {
+      if (campo in alteracoes && (typeof alteracoes[campo] !== 'string' || !alteracoes[campo].trim())) {
+        res.status(400).json({ sucesso: false, mensagem: 'Informe o título e o conteúdo da notícia.' });
+        return;
+      }
+    }
+    if ('conteudo' in alteracoes) alteracoes.conteudo = alteracoes.conteudo.trim();
+
+    noticia.set(alteracoes);
+    await noticia.save();
+    res.status(200).json({ sucesso: true, mensagem: 'Notícia atualizada!', dados: noticia });
+  } catch (error: any) {
+    const status = error.name === 'ValidationError' ? 400 : 500;
+    res.status(status).json({ sucesso: false, mensagem: error.message || 'Erro ao atualizar notícia.' });
+  }
+};
+
+// @desc    Excluir uma notícia
+// @route   DELETE /api/news/:id
+// @access  Privado (quem publicou ou Admin)
+export const deleteNews = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const noticia = await findManagedNews(req, res);
+    if (!noticia) return;
+
+    await noticia.deleteOne();
+    res.status(200).json({ sucesso: true, mensagem: 'Notícia excluída.' });
+  } catch (error: any) {
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao excluir notícia.' });
   }
 };
 

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/brand/rr_brand.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/motion/rr_motion.dart';
 import '../../../core/theme/rr_theme.dart';
@@ -17,8 +18,10 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/workout_model.dart';
 import 'workouts_provider.dart';
 
+/// Formulário de treino: publica um novo ou, com [workout], edita o existente.
 class NewWorkoutScreen extends StatefulWidget {
-  const NewWorkoutScreen({super.key});
+  final WorkoutModel? workout;
+  const NewWorkoutScreen({super.key, this.workout});
 
   @override
   State<NewWorkoutScreen> createState() => _NewWorkoutScreenState();
@@ -43,8 +46,33 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
   static const _maxPhotoBytes = 5 * 1024 * 1024;
   final List<_PickedPhoto> _photos = [];
 
+  /// Fotos que o treino já tinha e continuam nele.
+  final List<String> _existing = [];
+
   /// Caminhos já enviados: se publicar falhar, a nova tentativa não reenvia.
   List<String>? _uploaded;
+
+  int get _photoCount => _existing.length + _photos.length;
+
+  @override
+  void initState() {
+    super.initState();
+    final w = widget.workout;
+    if (w == null) return;
+    String pad(int value) => value.toString().padLeft(2, '0');
+    final km = w.distanciaKm;
+    _title.text = w.titulo;
+    _distance.text = (km == km.roundToDouble() ? km.toInt() : km).toString().replaceAll('.', ',');
+    _hours.text = pad(w.duracaoSegundos ~/ 3600);
+    _minutes.text = pad(w.duracaoSegundos % 3600 ~/ 60);
+    _seconds.text = pad(w.duracaoSegundos % 60);
+    if (w.altimetria > 0) _elevation.text = '${w.altimetria}';
+    _description.text = w.descricao;
+    _type = w.tipoTreino;
+    _effort = w.effortLevel;
+    _date = w.dataTreino.toLocal();
+    _existing.addAll(w.fotos);
+  }
 
   @override
   void dispose() {
@@ -61,17 +89,19 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final oldest = DateTime(now.year - 5);
+    // Um treino já salvo pode estar fora desse intervalo, e o calendário exige que a data caiba nele.
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(now.year - 5),
-      lastDate: now,
+      firstDate: _date.isBefore(oldest) ? _date : oldest,
+      lastDate: _date.isAfter(now) ? _date : now,
     );
     if (picked != null) setState(() => _date = picked);
   }
 
   Future<void> _pickPhotos() async {
-    final remaining = _maxPhotos - _photos.length;
+    final remaining = _maxPhotos - _photoCount;
     final List<XFile> picked;
     try {
       picked = await ImagePicker().pickMultiImage(
@@ -114,8 +144,61 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
     _uploaded = null;
   });
 
+  Widget _photoTile({required Key key, required Widget image, required int number, required VoidCallback onRemove}) {
+    return TweenAnimationBuilder<double>(
+      key: key,
+      tween: Tween(begin: RRMotion.reduced(context) ? 1 : .7, end: 1),
+      duration: RRMotion.of(context, RRMotion.base),
+      curve: RRMotion.pop,
+      builder: (_, scale, child) => Transform.scale(scale: scale, child: child),
+      child: SizedBox(
+        width: _photoSize,
+        height: _photoSize,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(borderRadius: BorderRadius.circular(RRRadius.md), child: image),
+            Align(
+              alignment: Alignment.topRight,
+              // Círculo discreto, mas com área de toque de 44 px.
+              child: Tooltip(
+                message: 'Remover foto $number',
+                child: Semantics(
+                  button: true,
+                  label: 'Remover foto $number',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _saving ? null : onRemove,
+                    child: SizedBox.square(
+                      dimension: 44,
+                      child: Align(
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: RRPalette.cal950.withValues(alpha: .82),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(child: RRIcon('fechar', size: 14, color: RRPalette.cal50)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static const _photoSize = 96.0;
+
   Widget _photoPicker(RRColors c) {
-    const size = 96.0;
+    const size = _photoSize;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -123,7 +206,7 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('FOTOS — OPCIONAL', style: RRType.monoS.copyWith(color: c.textSecondary)),
-            Text('${_photos.length} DE $_maxPhotos', style: RRType.monoS.copyWith(color: c.textMuted)),
+            Text('$_photoCount DE $_maxPhotos', style: RRType.monoS.copyWith(color: c.textMuted)),
           ],
         ),
         const SizedBox(height: 8),
@@ -131,59 +214,30 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (var i = 0; i < _photos.length; i++)
-              TweenAnimationBuilder<double>(
-                key: ObjectKey(_photos[i]),
-                tween: Tween(begin: RRMotion.reduced(context) ? 1 : .7, end: 1),
-                duration: RRMotion.of(context, RRMotion.base),
-                curve: RRMotion.pop,
-                builder: (_, scale, child) => Transform.scale(scale: scale, child: child),
-                child: SizedBox(
-                  width: size,
-                  height: size,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(RRRadius.md),
-                        child: Image.memory(_photos[i].bytes, fit: BoxFit.cover, semanticLabel: 'Foto ${i + 1}'),
-                      ),
-                      Align(
-                        alignment: Alignment.topRight,
-                        // Círculo discreto, mas com área de toque de 44 px.
-                        child: Tooltip(
-                          message: 'Remover foto ${i + 1}',
-                          child: Semantics(
-                            button: true,
-                            label: 'Remover foto ${i + 1}',
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _saving ? null : () => _removePhoto(i),
-                              child: SizedBox.square(
-                                dimension: 44,
-                                child: Align(
-                                  alignment: Alignment.topRight,
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    margin: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: RRPalette.cal950.withValues(alpha: .82),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Center(child: RRIcon('fechar', size: 14, color: RRPalette.cal50)),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            for (final (i, path) in _existing.indexed)
+              _photoTile(
+                key: ValueKey(path),
+                image: Image.network(
+                  ApiConstants.mediaUrl(path),
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Foto ${i + 1}',
+                  errorBuilder: (_, _, _) => ColoredBox(color: c.border),
                 ),
+                number: i + 1,
+                onRemove: () => setState(() => _existing.removeAt(i)),
               ),
-            if (_photos.length < _maxPhotos)
+            for (var i = 0; i < _photos.length; i++)
+              _photoTile(
+                key: ObjectKey(_photos[i]),
+                image: Image.memory(
+                  _photos[i].bytes,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Foto ${_existing.length + i + 1}',
+                ),
+                number: _existing.length + i + 1,
+                onRemove: () => _removePhoto(i),
+              ),
+            if (_photoCount < _maxPhotos)
               Semantics(
                 button: true,
                 label: 'Adicionar fotos',
@@ -236,7 +290,7 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
       if (_photos.isNotEmpty) {
         _uploaded ??= await workouts.uploadPhotos(_photos.map((p) => p.file).toList());
       }
-      await workouts.publish({
+      final body = <String, dynamic>{
         'titulo': _title.text.trim(),
         'descricao': _description.text.trim(),
         'tipoTreino': _type,
@@ -245,11 +299,17 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
         'altimetria': int.tryParse(_elevation.text) ?? 0,
         'sensacaoEsforco': WorkoutModel.efforts[_effort - 1],
         'dataTreino': _date.toIso8601String(),
-        'fotos': _uploaded ?? const <String>[],
-      });
+        'fotos': [..._existing, ...?_uploaded],
+      };
+      final editing = widget.workout;
+      if (editing != null) {
+        await workouts.update(editing, body);
+      } else {
+        await workouts.publish(body);
+      }
       await auth.refreshUser();
       if (!mounted) return;
-      showRRToast(context, 'Treino publicado!');
+      showRRToast(context, editing != null ? 'Treino atualizado!' : 'Treino publicado!');
       Navigator.pop(context);
     } on ApiException catch (e) {
       if (mounted) showRRToast(context, e.message, error: true);
@@ -274,10 +334,10 @@ class _NewWorkoutScreenState extends State<NewWorkoutScreen> {
     final c = context.rr;
     final km = Fmt.decimal(_distance.text) ?? 0;
     return RRSubPage(
-      title: 'Publicar treino',
+      title: widget.workout != null ? 'Editar treino' : 'Publicar treino',
       maxWidth: 640,
       bottom: RRButton(
-        'Publicar treino',
+        widget.workout != null ? 'Salvar alterações' : 'Publicar treino',
         kind: RRButtonKind.primary,
         size: RRButtonSize.l,
         expand: true,

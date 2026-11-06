@@ -5,7 +5,7 @@ class NewsModel {
   static const categories = ['Novidade', 'Dica de Treino', 'Nutrição', 'Aviso', 'Destaque'];
 
   final String id, titulo, conteudo, categoria, autor;
-  final String? subtitulo, imagemUrl, linkOriginal, fonteNome;
+  final String? subtitulo, imagemUrl, linkOriginal, fonteNome, criadoPor;
   final bool destaque;
   final DateTime createdAt;
   final DateTime? publicadoEm;
@@ -22,6 +22,7 @@ class NewsModel {
     this.imagemUrl,
     this.linkOriginal,
     this.fonteNome,
+    this.criadoPor,
     this.publicadoEm,
   });
 
@@ -35,6 +36,7 @@ class NewsModel {
     imagemUrl: json['imagemUrl'] as String?,
     linkOriginal: json['linkOriginal'] as String?,
     fonteNome: json['fonteNome'] as String?,
+    criadoPor: json['criadoPor']?.toString(),
     destaque: json['destaque'] as bool? ?? false,
     createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ?? DateTime.now(),
     publicadoEm: DateTime.tryParse(json['publicadoEm'] as String? ?? '')?.toLocal(),
@@ -107,6 +109,10 @@ class NewsService {
   }
 
   static Future<void> create(Map<String, dynamic> body) => ApiClient.post(ApiConstants.news, body);
+
+  static Future<void> update(String id, Map<String, dynamic> body) => ApiClient.put('${ApiConstants.news}/$id', body);
+
+  static Future<void> delete(String id) => ApiClient.delete('${ApiConstants.news}/$id');
 
   static Future<void> setHidden(String id, bool hidden) =>
       ApiClient.put('${ApiConstants.news}/$id/visibility', {'oculta': hidden});

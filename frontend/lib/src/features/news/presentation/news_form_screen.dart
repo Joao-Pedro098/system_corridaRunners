@@ -11,8 +11,10 @@ import '../../../core/widgets/rr_layout.dart';
 import '../data/news_model.dart';
 
 /// Publicação de notícia, disponível para organizadores e administradores.
+/// Com [news], edita a notícia existente.
 class NewsFormScreen extends StatefulWidget {
-  const NewsFormScreen({super.key});
+  final NewsModel? news;
+  const NewsFormScreen({super.key, this.news});
 
   @override
   State<NewsFormScreen> createState() => _NewsFormScreenState();
@@ -21,12 +23,13 @@ class NewsFormScreen extends StatefulWidget {
 class _NewsFormScreenState extends State<NewsFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _shakeKey = GlobalKey<RRShakeState>();
-  final _title = TextEditingController();
-  final _subtitle = TextEditingController();
-  final _content = TextEditingController();
-  final _image = TextEditingController();
-  String _category = 'Novidade';
-  bool _featured = false, _saving = false;
+  late final _title = TextEditingController(text: widget.news?.titulo);
+  late final _subtitle = TextEditingController(text: widget.news?.subtitulo);
+  late final _content = TextEditingController(text: widget.news?.conteudo);
+  late final _image = TextEditingController(text: widget.news?.imagemUrl);
+  late String _category = widget.news?.categoria ?? 'Novidade';
+  late bool _featured = widget.news?.destaque ?? false;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -43,16 +46,22 @@ class _NewsFormScreenState extends State<NewsFormScreen> {
     }
     setState(() => _saving = true);
     try {
-      await NewsService.create({
+      final body = {
         'titulo': _title.text.trim(),
         'subtitulo': _subtitle.text.trim(),
         'conteudo': _content.text.trim(),
         'categoria': _category,
         'imagemUrl': _image.text.trim(),
         'destaque': _featured,
-      });
+      };
+      final editing = widget.news;
+      if (editing != null) {
+        await NewsService.update(editing.id, body);
+      } else {
+        await NewsService.create(body);
+      }
       if (!mounted) return;
-      showRRToast(context, 'Notícia publicada!');
+      showRRToast(context, editing != null ? 'Notícia atualizada!' : 'Notícia publicada!');
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) showRRToast(context, e.message, error: true);
@@ -67,9 +76,15 @@ class _NewsFormScreenState extends State<NewsFormScreen> {
     const gap = SizedBox(height: 20);
     String? required(String? v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null;
     return RRSubPage(
-      title: 'Nova notícia',
+      title: widget.news != null ? 'Editar notícia' : 'Nova notícia',
       maxWidth: 640,
-      bottom: RRButton('Publicar notícia', size: RRButtonSize.l, expand: true, loading: _saving, onPressed: _submit),
+      bottom: RRButton(
+        widget.news != null ? 'Salvar alterações' : 'Publicar notícia',
+        size: RRButtonSize.l,
+        expand: true,
+        loading: _saving,
+        onPressed: _submit,
+      ),
       child: Form(
         key: _formKey,
         child: RRShake(

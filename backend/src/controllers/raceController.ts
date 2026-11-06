@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { detectImageExtension, isOwnPhotoPath, removePhotos, savePhoto } from '../middlewares/uploadMiddleware';
 import { AuthenticatedRequest, IRace } from '../types';
 import { escapeRegex, parsePagination, pick } from '../utils/http';
+import { parseRouteShape } from '../utils/routeInput';
 
 // Campos que quem cadastra pode preencher. Dono e confirmados nunca vêm do cliente.
 const RACE_FIELDS = [
@@ -25,6 +26,12 @@ const RACE_FIELDS = [
 
 const canManage = (req: AuthenticatedRequest, race: IRace): boolean =>
   req.user?.tipo === 'admin' || race.criadoPor?.toString() === req.user?._id.toString();
+
+// O traçado é pesado: as listagens não o carregam.
+const WITHOUT_ROUTES = '-distancias.percurso';
+
+// O percurso só muda pela rota própria, onde é validado.
+const withoutRoute = ({ percurso: _percurso, ...distancia }: any) => distancia;
 
 // @desc    Listar todas as corridas com filtros avançados
 // @route   GET /api/races
@@ -91,6 +98,7 @@ export const getAllRaces = async (req: Request, res: Response): Promise<void> =>
 
     const [corridas, total] = await Promise.all([
       Race.find(filtro)
+        .select(WITHOUT_ROUTES)
         .sort({ data: 1 }) // Mais próximas primeiro
         .skip(skip)
         .limit(limitNum)
@@ -207,7 +215,7 @@ export const uploadRaceCover = async (req: AuthenticatedRequest, res: Response):
 // @access  Privado (Organizador / Admin)
 export const getMyRaces = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const corridas = await Race.find({ criadoPor: req.user!._id }).sort({ data: 1 });
+    const corridas = await Race.find({ criadoPor: req.user!._id }).select(WITHOUT_ROUTES).sort({ data: 1 });
     res.status(200).json({ sucesso: true, total: corridas.length, dados: corridas });
   } catch (error: any) {
     res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao buscar suas provas.' });
@@ -230,6 +238,8 @@ export const createRace = async (req: AuthenticatedRequest, res: Response): Prom
       res.status(400).json({ sucesso: false, mensagem: 'Capa inválida.' });
       return;
     }
+
+    dadosCorrida.distancias = dadosCorrida.distancias.map(withoutRoute);
 
     // Se o organizador não for informado, usa o nome do usuário logado
     if (!dadosCorrida.organizador?.nome && req.user) {
@@ -295,9 +305,9 @@ export const updateRace = async (req: AuthenticatedRequest, res: Response): Prom
       alteracoes.distancias = alteracoes.distancias.map((nova: any) => {
         const antiga = anteriores.find((d) => d.distanciaKm === Number(nova.distanciaKm));
         return {
-          ...(antiga?.rotaGeoJSON?.type ? { rotaGeoJSON: antiga.rotaGeoJSON } : {}),
           ...(antiga?.arquivoPercursoUrl ? { arquivoPercursoUrl: antiga.arquivoPercursoUrl } : {}),
-          ...nova,
+          ...withoutRoute(nova),
+          ...(antiga?.percurso ? { percurso: antiga.percurso } : {}),
         };
       });
     }
@@ -360,6 +370,62 @@ export const deleteRace = async (req: AuthenticatedRequest, res: Response): Prom
   }
 };
 
+// Acha a prova e a distância do pedido; se não puder seguir, já responde.
+const findManagedDistance = async (req: AuthenticatedRequest, res: Response) => {
+  const corrida = await Race.findById(req.params.id);
+  if (!corrida) {
+    res.status(404).json({ sucesso: false, mensagem: 'Corrida não encontrada.' });
+    return null;
+  }
+  if (!canManage(req, corrida)) {
+    res.status(403).json({ sucesso: false, mensagem: 'Sem permissão para alterar esta corrida.' });
+    return null;
+  }
+  const distancia = corrida.distancias.find((d) => d.distanciaKm === Number(req.params.km));
+  if (!distancia) {
+    res.status(404).json({ sucesso: false, mensagem: 'Essa distância não existe na prova.' });
+    return null;
+  }
+  return { corrida, distancia };
+};
+
+// @desc    Salvar o percurso de uma distância da prova
+// @route   PUT /api/races/:id/distancias/:km/percurso
+// @access  Privado (quem criou a prova ou Admin)
+export const setRaceRoute = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const parsed = parseRouteShape(req.body);
+    if ('erro' in parsed) {
+      res.status(400).json({ sucesso: false, mensagem: parsed.erro });
+      return;
+    }
+    const found = await findManagedDistance(req, res);
+    if (!found) return;
+
+    found.distancia.percurso = parsed.dados;
+    await found.corrida.save();
+    res.status(200).json({ sucesso: true, mensagem: 'Percurso salvo!', dados: found.corrida });
+  } catch (error: any) {
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao salvar o percurso.' });
+  }
+};
+
+// @desc    Remover o percurso de uma distância da prova
+// @route   DELETE /api/races/:id/distancias/:km/percurso
+// @access  Privado (quem criou a prova ou Admin)
+export const removeRaceRoute = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const found = await findManagedDistance(req, res);
+    if (!found) return;
+
+    found.distancia.percurso = undefined;
+    await found.corrida.save();
+    res.status(200).json({ sucesso: true, mensagem: 'Percurso removido.', dados: found.corrida });
+  } catch (error: any) {
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao remover o percurso.' });
+  }
+};
+
 // @desc    Obter corridas em destaque para o banner/carrossel
 // @route   GET /api/races/featured
 // @access  Público
@@ -370,6 +436,7 @@ export const getFeaturedRaces = async (req: Request, res: Response): Promise<voi
       data: { $gte: hoje },
       bannerUrl: { $exists: true, $ne: '' },
     })
+      .select(WITHOUT_ROUTES)
       .sort({ data: 1 })
       .limit(5);
 

@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -49,6 +52,35 @@ class AuthService {
   /// Atualiza perfil e recordes pessoais.
   Future<UserModel> updateProfile(Map<String, dynamic> body) async {
     final data = await ApiClient.put(ApiConstants.profile, body);
+    final user = UserModel.fromJson(data['dados'] as Map<String, dynamic>, token: ApiClient.token);
+    await _updateSavedUser(user);
+    return user;
+  }
+
+  /// A troca invalida o token atual: passa a usar o novo que o servidor devolve.
+  Future<void> changePassword(String current, String next) async {
+    final data = await ApiClient.put(ApiConstants.password, {'senhaAtual': current, 'novaSenha': next});
+    final token = data['token'] as String;
+    ApiClient.token = token;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(_tokenKey)) await prefs.setString(_tokenKey, token);
+  }
+
+  Future<UserModel> uploadAvatar(XFile file) async {
+    final data = await ApiClient.upload(ApiConstants.avatar, [
+      http.MultipartFile.fromBytes(
+        'foto',
+        await file.readAsBytes(),
+        filename: file.name,
+        contentType: MediaType.parse(file.mimeType ?? 'image/jpeg'),
+      ),
+    ]);
+    return _savedFrom(data);
+  }
+
+  Future<UserModel> removeAvatar() async => _savedFrom(await ApiClient.delete(ApiConstants.avatar));
+
+  Future<UserModel> _savedFrom(Map<String, dynamic> data) async {
     final user = UserModel.fromJson(data['dados'] as Map<String, dynamic>, token: ApiClient.token);
     await _updateSavedUser(user);
     return user;

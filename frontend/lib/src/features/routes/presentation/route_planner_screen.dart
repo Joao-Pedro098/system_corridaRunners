@@ -1,14 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/brand/rr_brand.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/rr_theme.dart';
 import '../../../core/utils/format.dart';
@@ -18,6 +13,7 @@ import '../../../core/widgets/rr_field.dart';
 import '../../../core/widgets/rr_layout.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../data/route_model.dart';
+import 'route_map.dart';
 
 /// Parauapebas, enquanto o corredor não pede a própria localização.
 const _defaultCenter = LatLng(-6.0675, -49.9020);
@@ -46,7 +42,13 @@ class RoutePlannerScreen extends StatefulWidget {
   /// Os testes não baixam mapas da internet.
   final bool showTiles;
 
-  const RoutePlannerScreen({super.key, this.routeId, this.showTiles = true});
+  /// Desenho do percurso de uma prova: quem abre decide como salvar,
+  /// sem pedir nome. O planejador já começa em [initial] e mostra [title].
+  final String? title;
+  final RouteDraft? initial;
+  final Future<void> Function(RouteDraft draft)? onSave;
+
+  const RoutePlannerScreen({super.key, this.routeId, this.showTiles = true, this.title, this.initial, this.onSave});
 
   @override
   State<RoutePlannerScreen> createState() => _RoutePlannerScreenState();
@@ -54,8 +56,9 @@ class RoutePlannerScreen extends StatefulWidget {
 
 class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   final _map = MapController();
-  RouteDraft _draft = RouteDraft();
-  String? _name, _loadError, _lastWarning;
+  late RouteDraft _draft = widget.initial?.copy() ?? RouteDraft();
+  late String? _name = widget.title;
+  String? _loadError, _lastWarning;
   LatLng? _me;
 
   /// Pontos tocados que ainda esperam o trecho: os toques são atendidos em ordem.
@@ -171,39 +174,33 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
   Future<void> _export() async {
     final name = _name ?? 'Rota RunnersRun';
     try {
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile.fromData(
-              utf8.encode(buildGpx(name, _draft.segments)),
-              mimeType: 'application/gpx+xml',
-              name: gpxFileName(name),
-            ),
-          ],
-          fileNameOverrides: [gpxFileName(name)],
-        ),
-      );
+      await shareRouteGpx(name, _draft.segments);
     } catch (_) {
       if (mounted) showRRToast(context, 'Não foi possível exportar o arquivo.', error: true);
     }
   }
 
   Future<void> _save() async {
-    final name = await showDialog<String>(
-      context: context,
-      builder: (_) => _RouteNameDialog(initial: _name),
-    );
-    if (name == null || !mounted) return;
+    final onSave = widget.onSave;
+    final name = onSave != null
+        ? _name
+        : await showDialog<String>(
+            context: context,
+            builder: (_) => _RouteNameDialog(initial: _name),
+          );
+    if ((onSave == null && name == null) || !mounted) return;
     setState(() => _saving = true);
     try {
-      if (widget.routeId == null) {
-        await RouteService.create(name, _draft);
+      if (onSave != null) {
+        await onSave(_draft);
+      } else if (widget.routeId == null) {
+        await RouteService.create(name!, _draft);
       } else {
-        await RouteService.update(widget.routeId!, name, _draft);
+        await RouteService.update(widget.routeId!, name!, _draft);
       }
       if (!mounted) return;
       setState(() => _dirty = false);
-      showRRToast(context, 'Rota salva!');
+      showRRToast(context, onSave != null ? 'Percurso salvo!' : 'Rota salva!');
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) showRRToast(context, e.message, error: true);
@@ -298,25 +295,8 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
         onTap: (_, point) => _tap(point),
       ),
       children: [
-        if (widget.showTiles)
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'br.com.runnersrun.app',
-            maxZoom: 19,
-          ),
-        PolylineLayer(
-          polylines: [
-            for (final segment in _draft.segments)
-              Polyline(
-                points: segment.latLngs,
-                strokeWidth: segment.straight ? 3 : 5,
-                color: segment.straight ? RRPalette.cal950 : RRPalette.tartan500,
-                borderStrokeWidth: segment.straight ? 0 : 1.5,
-                borderColor: RRPalette.cal50,
-                pattern: segment.straight ? StrokePattern.dashed(segments: const [8, 6]) : const StrokePattern.solid(),
-              ),
-          ],
-        ),
+        if (widget.showTiles) routeTileLayer(),
+        routeLines(_draft.segments),
         MarkerLayer(
           markers: [
             if (_me != null)
@@ -324,40 +304,19 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
                 point: _me!,
                 width: 18,
                 height: 18,
-                child: const _Dot(color: RRPalette.ceu300, size: 18),
+                child: const RouteDot(color: RRPalette.ceu300, size: 18),
               ),
-            // Da chegada para a largada: num circuito fechado, a bandeira fica por cima.
-            for (final (i, point) in points.indexed.toList().reversed)
-              if (i == 0)
-                Marker(point: point, width: 26, height: 26, child: const _StartMarker())
-              else if (i == points.length - 1)
-                Marker(
-                  point: point,
-                  width: 18,
-                  height: 18,
-                  child: const _Dot(color: RRPalette.cal950, size: 18),
-                )
-              else
-                Marker(
-                  point: point,
-                  width: 14,
-                  height: 14,
-                  child: const _Dot(color: RRPalette.tartan500, size: 14),
-                ),
+            ...routeMarkers(points),
             for (final point in _pending)
               Marker(
                 point: point,
                 width: 14,
                 height: 14,
-                child: const _Dot(color: RRPalette.cal400, size: 14),
+                child: const RouteDot(color: RRPalette.cal400, size: 14),
               ),
           ],
         ),
-        SimpleAttributionWidget(
-          source: const Text('OpenStreetMap'),
-          onTap: () =>
-              launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'), mode: LaunchMode.externalApplication),
-        ),
+        routeAttribution(),
       ],
     );
   }
@@ -414,7 +373,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: RRButton(
-                    'Salvar rota',
+                    widget.onSave != null ? 'Salvar percurso' : 'Salvar rota',
                     expand: true,
                     loading: _saving,
                     onPressed: draft.canSave && !_busy ? _save : null,
@@ -455,38 +414,6 @@ class _Stat extends StatelessWidget {
       ],
     );
   }
-}
-
-class _Dot extends StatelessWidget {
-  final Color color;
-  final double size;
-  const _Dot({required this.color, required this.size});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: color,
-      shape: BoxShape.circle,
-      border: Border.all(color: RRPalette.cal50, width: 2),
-    ),
-  );
-}
-
-class _StartMarker extends StatelessWidget {
-  const _StartMarker();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: RRPalette.tartan500,
-      shape: BoxShape.circle,
-      border: Border.all(color: RRPalette.cal50, width: 2),
-    ),
-    alignment: Alignment.center,
-    child: const RRIcon('largada', size: 14, color: RRPalette.cal950),
-  );
 }
 
 class _RouteNameDialog extends StatefulWidget {

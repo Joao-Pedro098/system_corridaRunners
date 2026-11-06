@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { Race } from '../models/Race';
 import { getJwtSecret } from '../config/jwt';
+import { detectImageExtension, removePhotos, savePhoto } from '../middlewares/uploadMiddleware';
 import { removeNotifications, notify } from '../services/notificationService';
 import { AuthenticatedRequest } from '../types';
 
@@ -18,7 +19,7 @@ const generateToken = (id: string): string => {
 // @access  Público
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, senha, tipo, telefone, cidade, estado, bio, avatarUrl } = req.body;
+    const { nome, senha, tipo, telefone, cidade, estado, bio } = req.body;
 
     if (typeof req.body.email !== 'string' || typeof senha !== 'string' || typeof nome !== 'string') {
       res.status(400).json({ sucesso: false, mensagem: 'Informe nome, e-mail e senha.' });
@@ -45,7 +46,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       cidade,
       estado,
       bio,
-      avatarUrl,
     });
 
     res.status(201).json({
@@ -144,7 +144,7 @@ export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<v
       return;
     }
 
-    const user = await User.findById(req.user._id).populate('corridasSalvas');
+    const user = await User.findById(req.user._id).populate({ path: 'corridasSalvas', select: '-distancias.percurso' });
 
     res.status(200).json({
       sucesso: true,
@@ -197,7 +197,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
-    const { nome, telefone, cidade, estado, avatarUrl, bio, recordesPessoais } = req.body;
+    const { nome, telefone, cidade, estado, bio, recordesPessoais } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -209,7 +209,6 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
     if (telefone !== undefined) user.telefone = telefone;
     if (cidade !== undefined) user.cidade = cidade;
     if (estado !== undefined) user.estado = estado;
-    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
     if (bio !== undefined) user.bio = bio;
     if (recordesPessoais && typeof recordesPessoais === 'object') {
       for (const chave of ['rp5k', 'rp10k', 'rp21k', 'rp42k'] as const) {
@@ -231,6 +230,107 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response): P
       sucesso: false,
       mensagem: error.message || 'Erro ao atualizar perfil.',
     });
+  }
+};
+
+// @desc    Trocar a senha e encerrar as demais sessões
+// @route   PUT /api/auth/password
+// @access  Privado
+export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { senhaAtual, novaSenha } = req.body ?? {};
+    if (typeof senhaAtual !== 'string' || typeof novaSenha !== 'string' || !senhaAtual || !novaSenha) {
+      res.status(400).json({ sucesso: false, mensagem: 'Informe a senha atual e a nova senha.' });
+      return;
+    }
+
+    const user = await User.findById(req.user?._id).select('+senha');
+    if (!user) {
+      res.status(404).json({ sucesso: false, mensagem: 'Usuário não encontrado.' });
+      return;
+    }
+
+    // É 400, não 401: para o app, 401 significa sessão encerrada.
+    if (!(await user.compararSenha(senhaAtual))) {
+      res.status(400).json({ sucesso: false, mensagem: 'A senha atual está incorreta.' });
+      return;
+    }
+    if (novaSenha === senhaAtual) {
+      res.status(400).json({ sucesso: false, mensagem: 'A nova senha precisa ser diferente da atual.' });
+      return;
+    }
+
+    user.senha = novaSenha;
+    user.senhaAlteradaEm = new Date();
+    await user.save();
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: 'Senha alterada!',
+      token: generateToken(user._id.toString()),
+    });
+  } catch (error: any) {
+    if (error.name === 'ValidationError') {
+      const primeira: any = Object.values(error.errors)[0];
+      res.status(400).json({ sucesso: false, mensagem: primeira?.message || 'Dados inválidos.' });
+      return;
+    }
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao alterar a senha.' });
+  }
+};
+
+// @desc    Enviar a foto de perfil, substituindo a anterior
+// @route   POST /api/auth/avatar
+// @access  Privado
+export const uploadAvatar = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ sucesso: false, mensagem: 'Nenhuma imagem enviada.' });
+      return;
+    }
+    const extension = detectImageExtension(file.buffer);
+    if (!extension) {
+      res.status(400).json({ sucesso: false, mensagem: 'Envie a foto em JPG, PNG ou WebP.' });
+      return;
+    }
+
+    const user = await User.findById(req.user?._id);
+    if (!user) {
+      res.status(404).json({ sucesso: false, mensagem: 'Usuário não encontrado.' });
+      return;
+    }
+
+    const anterior = user.avatarUrl;
+    user.avatarUrl = await savePhoto(file.buffer, extension, user._id.toString(), 'avatars');
+    await user.save();
+    if (anterior) await removePhotos([anterior]);
+
+    res.status(200).json({ sucesso: true, mensagem: 'Foto atualizada!', dados: user });
+  } catch (error: any) {
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao enviar a foto.' });
+  }
+};
+
+// @desc    Remover a foto de perfil
+// @route   DELETE /api/auth/avatar
+// @access  Privado
+export const removeAvatar = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = await User.findById(req.user?._id);
+    if (!user) {
+      res.status(404).json({ sucesso: false, mensagem: 'Usuário não encontrado.' });
+      return;
+    }
+
+    const anterior = user.avatarUrl;
+    user.avatarUrl = '';
+    await user.save();
+    if (anterior) await removePhotos([anterior]);
+
+    res.status(200).json({ sucesso: true, mensagem: 'Foto removida.', dados: user });
+  } catch (error: any) {
+    res.status(500).json({ sucesso: false, mensagem: error.message || 'Erro ao remover a foto.' });
   }
 };
 

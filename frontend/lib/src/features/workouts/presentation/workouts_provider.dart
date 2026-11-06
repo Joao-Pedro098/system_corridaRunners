@@ -108,6 +108,15 @@ class WorkoutsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> update(WorkoutModel workout, Map<String, dynamic> body) async {
+    final data = await ApiClient.put('${ApiConstants.workouts}/${workout.id}', body);
+    final updated = WorkoutModel.fromJson(data['dados'] as Map<String, dynamic>);
+    for (final w in _copies(workout)) {
+      w.applyEdit(updated);
+    }
+    notifyListeners();
+  }
+
   /// Curte de forma otimista e desfaz se o servidor recusar.
   Future<void> toggleLike(WorkoutModel workout, String userId) async {
     final liked = workout.curtidas.contains(userId);
